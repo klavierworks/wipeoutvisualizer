@@ -11,14 +11,41 @@
   display: grid;
 }
 
+.remaining,
+.check,
 .speed {
   position: absolute;
-  bottom: 0;
-  right: 2%;
   display: flex;
+  font-size: 120px;
+  line-height: 1;
+}
+
+.speed {
+  right: 2%;
+  bottom: 2%;
   place-content: center;
   place-items: center;
-  font-size: 160px;
+}
+
+.check {
+  font-size: 60px;
+  line-height: 0.7;
+  flex-direction: column;
+  text-align: left;
+  left: 2%;
+  top: 4%;
+  color: rgb(240 194 66 / 1);
+}
+
+.check  .time {
+  font-size: 2em;
+  color: white;
+}
+
+.remaining {
+  font-size: 120px;
+  left: 2%;
+  bottom: 2%;
 }
 
 .bpm {
@@ -35,12 +62,14 @@
 
 .positions {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 4%;
+  right: 2%;
   display: flex;
   flex-direction: column;
-  font-size: 24px;
+  font-size: 16px;
+  opacity: 0.1;
   line-height: 1;
+  white-space: pre;
 }
 
 .row {
@@ -48,4 +77,44 @@
   padding: 0;
   margin: 0;
   flex-direction: row;
+}
+
+.atlases {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: white;
+}
+
+.atlasRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.atlasLabel {
+  font-size: 16px;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.atlasImages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.atlasImage {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: rgba(255, 255, 255, 0.05);
+  outline: 1px solid rgba(255, 255, 255, 0.1);
+  height: 48px;
+  width: auto;
 }

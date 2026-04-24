@@ -22,4 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-public/WIPEOUT2
+
+gamefiles/*
+!gamefiles/README.md
+reader/target
