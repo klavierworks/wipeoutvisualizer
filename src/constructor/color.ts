@@ -1,10 +1,13 @@
 import { Color } from 'three'
 
-export const u32ToColor = (v: number): Color =>
-  new Color(((v >> 24) & 0xff) / 0x80, ((v >> 16) & 0xff) / 0x80, ((v >> 8) & 0xff) / 0x80)
+import { WIPEOUT_COLOR_DIVISOR } from './constants'
 
-export const u32ToRgb = (v: number): [number, number, number] => [
-  ((v >> 24) & 0xff) / 0x80,
-  ((v >> 16) & 0xff) / 0x80,
-  ((v >> 8) & 0xff) / 0x80,
+const channel = (value: number, shift: number): number => ((value >> shift) & 0xff) / WIPEOUT_COLOR_DIVISOR
+
+export const u32ToColor = (value: number): Color => new Color(channel(value, 24), channel(value, 16), channel(value, 8))
+
+export const u32ToRgb = (value: number): [number, number, number] => [
+  channel(value, 24),
+  channel(value, 16),
+  channel(value, 8),
 ]

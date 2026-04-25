@@ -1,5 +1,3 @@
-export { AudioProvider } from './AudioProvider'
-export { AudioTicker } from './AudioTicker'
+export type { AnalyzeResult, SectionMarker, TempoSegment } from './analyze'
 export { audioState } from './state'
 export type { AudioState, SectionInfo } from './state'
-export type { AnalyzeResult, TempoSegment, SectionMarker } from './analyze'

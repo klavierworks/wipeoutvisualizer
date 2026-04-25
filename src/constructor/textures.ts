@@ -1,4 +1,5 @@
 import { DataTexture, NearestFilter, RGBAFormat, UnsignedByteType } from 'three'
+
 import type { DecodedImage } from '../reader-bridge'
 
 export const createTexture = (image: DecodedImage): DataTexture => {
@@ -7,6 +8,7 @@ export const createTexture = (image: DecodedImage): DataTexture => {
   texture.minFilter = NearestFilter
   texture.flipY = true
   texture.needsUpdate = true
+
   return texture
 }
 

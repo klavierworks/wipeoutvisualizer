@@ -1,38 +1,41 @@
 import { Group } from 'three'
+
 import type { DecodedImage, ExtrasData, ReaderResult } from '../reader-bridge'
+
 import { constructObjectBundle } from './object'
+import { constructScene, type SceneBundle } from './scene'
 import { prepareShips } from './ships'
-import { constructTrack, type BuiltTrack } from './track'
-import { buildTrackSpline, type TrackSpline } from './trackSpline'
+import { type BuiltTrack, constructTrack } from './track'
+import { buildTrackSplines, type TrackSpline } from './trackSpline'
 
 export type Built = {
-  scene: Group
-  sky: Group
-  track: BuiltTrack
+  scene: SceneBundle
   ships: {
     meshes: Group[]
-    spline: TrackSpline
+    splines: TrackSpline[]
   }
+  sky: Group
+  track: BuiltTrack
 }
 
 export type BuiltExtras = {
-  meshes: Record<string, Group>
   atlases: Record<string, DecodedImage[]>
+  meshes: Record<string, Group>
 }
 
 export const construct = (data: ReaderResult): Built => ({
-  scene: constructObjectBundle(data.scene),
-  sky: constructObjectBundle(data.sky),
-  track: constructTrack(data.track),
+  scene: constructScene(data.scene),
   ships: {
     meshes: prepareShips(data.ships),
-    spline: buildTrackSpline(data.track),
+    splines: buildTrackSplines(data.track),
   },
+  sky: constructObjectBundle(data.sky),
+  track: constructTrack(data.track),
 })
 
 export const constructExtras = (data: ExtrasData): BuiltExtras => ({
+  atlases: data.textures,
   meshes: Object.fromEntries(
     Object.entries(data.geometry).map(([name, bundle]) => [name, constructObjectBundle(bundle)]),
   ),
-  atlases: data.textures,
 })

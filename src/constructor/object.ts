@@ -1,50 +1,63 @@
 import { DataTexture, Group, Mesh } from 'three'
-import type { WipeoutObject, ObjectBundle, Vertex } from '../reader-bridge'
+
+import type { ObjectBundle, Vertex, WipeoutObject } from '../reader-bridge'
+import type { Triangle } from './geometry'
+
 import { buildGeometry } from './geometry'
 import { createMaterials, sceneMaterialOptions } from './materials'
-import { createPlumeMesh } from './plume'
+import { createPlumeNozzle } from './plume'
 import { objectVertexTransform, polygonToTriangles } from './polygons'
 import { constructSprite, isSprite } from './sprites'
 import { createTextures } from './textures'
 
-// WipEout 1 tagged exhaust tris with the `PRM_SHIP_ENGINE = 0x02` polygon flag
-// (phoboslab/wipeout-rewrite ship.c:271-396). WipEout 2097's TERRY.PRM does
-// NOT use that convention — every polygon is subtype 0x0001 — so we fall back
-// to a geometric heuristic. In PRM local space, ship +Z is the nose and -Z
-// is the tail, and each ship has 2–6 verts sitting at the minimum Z coord:
-// those are the nozzle anchor points. We use them to place separate plume
-// geometry as children of the ship group — no mesh deformation — so plumes
-// render cleanly regardless of how the PRM's rear fuselage is triangulated.
 const plumeAnchors = (vertices: Vertex[]): Vertex[] => {
-  if (vertices.length === 0) return []
-  let minZ = vertices[0].z
-  for (const v of vertices) {
-    if (v.z < minZ) minZ = v.z
+  if (vertices.length === 0) {
+    return []
   }
-  return vertices.filter((v) => v.z === minZ)
+
+  let minZ = vertices[0].z
+
+  for (const vertex of vertices) {
+    if (vertex.z < minZ) {
+      minZ = vertex.z
+    }
+  }
+
+  return vertices.filter((vertex) => vertex.z === minZ)
+}
+
+export type BuiltObject = {
+  group: Group
+  taggedIndices: Map<string, Uint32Array>
 }
 
 type ConstructOptions = {
-  // When true, adds a glowing plume mesh at each detected nozzle anchor.
-  // Set only for ship bundles — other objects' rear verts aren't nozzles.
   applyPlume?: boolean
+  tagFor?: (polygonIndex: number) => string | undefined
 }
 
-const constructOne = (
-  object: WipeoutObject,
-  textures: DataTexture[],
-  options: ConstructOptions,
-): Group => {
+export const buildObject = (object: WipeoutObject, textures: DataTexture[], options: ConstructOptions): BuiltObject => {
   const group = new Group()
   group.name = object.header.name
   group.position.set(object.header.position.x, -object.header.position.y, -object.header.position.z)
 
   const materials = createMaterials(textures, sceneMaterialOptions)
-  const context = { vertices: object.vertices, transform: objectVertexTransform, textures }
-  const triangles = object.polygons.flatMap((p) => polygonToTriangles(p, context))
+
+  const context = { textures, transform: objectVertexTransform, vertices: object.vertices }
+
+  const triangles = object.polygons.flatMap((polygon, index) => {
+    const tag = options.tagFor?.(index)
+    const tris = polygonToTriangles(polygon, context)
+
+    return tag ? tris.map((tri): Triangle => ({ ...tri, tag })) : tris
+  })
+
+  let taggedIndices = new Map<string, Uint32Array>()
 
   if (triangles.length > 0) {
-    group.add(new Mesh(buildGeometry(triangles).geometry, materials))
+    const built = buildGeometry(triangles)
+    group.add(new Mesh(built.geometry, materials))
+    taggedIndices = built.taggedIndices
   }
 
   for (const polygon of object.polygons) {
@@ -55,21 +68,22 @@ const constructOne = (
 
   if (options.applyPlume) {
     for (const anchor of plumeAnchors(object.vertices)) {
-      group.add(createPlumeMesh(objectVertexTransform(anchor)))
+      for (const mesh of createPlumeNozzle(objectVertexTransform(anchor))) {
+        group.add(mesh)
+      }
     }
   }
 
-  return group
+  return { group, taggedIndices }
 }
 
-export const constructObjectBundle = (
-  bundle: ObjectBundle,
-  options: ConstructOptions = {},
-): Group => {
+export const constructObjectBundle = (bundle: ObjectBundle, options: ConstructOptions = {}): Group => {
   const textures = createTextures(bundle.images)
   const group = new Group()
+
   for (const object of bundle.objects) {
-    group.add(constructOne(object, textures, options))
+    group.add(buildObject(object, textures, options).group)
   }
+
   return group
 }

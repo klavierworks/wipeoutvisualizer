@@ -1,95 +1,149 @@
-import {
-  AdditiveBlending,
-  BufferAttribute,
-  BufferGeometry,
-  Mesh,
-  ShaderMaterial,
-} from 'three'
+import { AdditiveBlending, BufferAttribute, BufferGeometry, DoubleSide, Mesh, ShaderMaterial } from 'three'
 
-// Width of each crossed plume quad, in ship-local PRM units. Ship extents
-// are ~±180 on X and ~±75 on Y, so 22 reads as a small focused jet rather
-// than a wide halo.
-const PLUME_WIDTH = 22
+import { PLUME_WIDTH } from './constants'
 
-// Two axis-aligned quads crossed at the local Z axis, extending from z=0
-// (at the nozzle anchor) to z=1 (tip). The shader scales z by uLength, so
-// one unit of geometry covers any plume length. Crossing two planes gives
-// a volumetric look that reads well from any camera angle without needing
-// billboarding or sprites.
-const buildPlumeGeometry = (): BufferGeometry => {
+const buildTrailGeometry = (): BufferGeometry => {
   const w = PLUME_WIDTH
+
   const positions = new Float32Array([
-    // XZ plane (width on X)
-    -w, 0, 0, w, 0, 0, w, 0, 1, -w, 0, 0, w, 0, 1, -w, 0, 1,
-    // YZ plane (width on Y)
-    0, -w, 0, 0, w, 0, 0, w, 1, 0, -w, 0, 0, w, 1, 0, -w, 1,
+    -w, 0, 0, w, 0, 0, w, 0, 1, -w, 0, 0, w, 0, 1, -w, 0, 1, 0, -w, 0, 0, w, 0, 0, w, 1, 0, -w, 0, 0, w, 1, 0, -w, 1,
   ])
-  // aAlongPlume is 0 at the nozzle end, 1 at the tip — used by the frag
-  // shader to fade alpha along the length.
+
   const alongs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1])
+  const acrosses = new Float32Array([-1, 1, 1, -1, 1, -1, -1, 1, 1, -1, 1, -1])
+
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new BufferAttribute(positions, 3))
   geometry.setAttribute('aAlongPlume', new BufferAttribute(alongs, 1))
+  geometry.setAttribute('aAcrossPlume', new BufferAttribute(acrosses, 1))
+
   return geometry
 }
 
-const PLUME_VERT = /* glsl */ `
-  uniform float uLength;
-  attribute float aAlongPlume;
-  varying float vAlong;
-  void main() {
-    vec3 transformed = vec3(position.x, position.y, position.z * uLength);
-    vAlong = aAlongPlume;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
-  }
-`
+const buildFlareGeometry = (): BufferGeometry => {
+  const corners = new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1])
+  const positions = new Float32Array(corners.length * (3 / 2))
 
-const PLUME_FRAG = /* glsl */ `
-  uniform vec3 uColor;
-  uniform float uIntensity;
-  varying float vAlong;
-  void main() {
-    // Bright near the nozzle, fading to zero at the tip. Squared for a
-    // tighter concentration at the hot core of the jet.
-    float a = 1.0 - vAlong;
-    gl_FragColor = vec4(uColor * uIntensity, a * a * uIntensity);
-  }
-`
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new BufferAttribute(positions, 3))
+  geometry.setAttribute('aCorner', new BufferAttribute(corners, 2))
 
-// Shared template geometry — cloned-by-reference across every plume on
-// every ship since the shape is identical. Only materials are per-ship.
-let sharedGeometry: BufferGeometry | null = null
-const getSharedGeometry = (): BufferGeometry => {
-  if (!sharedGeometry) sharedGeometry = buildPlumeGeometry()
-  return sharedGeometry
+  return geometry
 }
 
-// anchor is the nozzle position in SHIP-LOCAL BUFFER space (i.e. after
-// objectVertexTransform's Y and Z flips have been applied — the caller
-// converts from raw PRM coordinates). The mesh's own local +Z extends
-// backward from the ship; rotate 180° around Y so extending along +Z in
-// geometry-space maps to -Z in parent space (= buffer +Z after flip).
-export const createPlumeMesh = (anchor: [number, number, number]): Mesh => {
-  const geometry = getSharedGeometry()
-  const material = new ShaderMaterial({
-    uniforms: {
-      uLength: { value: 0 },
-      uIntensity: { value: 1 },
-      uColor: { value: [0.55, 0.8, 1.4] },
-    },
-    vertexShader: PLUME_VERT,
-    fragmentShader: PLUME_FRAG,
-    transparent: true,
-    depthWrite: false,
+const TRAIL_VERT = `
+  #include <common>
+  #include <logdepthbuf_pars_vertex>
+  uniform float uTrailLength;
+  attribute float aAlongPlume;
+  attribute float aAcrossPlume;
+  varying float vAlong;
+  varying float vAcross;
+  void main() {
+    float taper = 1.0 - aAlongPlume * 0.5;
+    vec3 pos = vec3(position.x * taper, position.y * taper, position.z * uTrailLength);
+    vAlong = aAlongPlume;
+    vAcross = aAcrossPlume;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    #include <logdepthbuf_vertex>
+  }
+`
+
+const TRAIL_FRAG = `
+  #include <common>
+  #include <logdepthbuf_pars_fragment>
+  uniform vec3 uColor;
+  varying float vAlong;
+  varying float vAcross;
+  void main() {
+    #include <logdepthbuf_fragment>
+    float lengthFade = 1.0 - vAlong;
+    lengthFade *= lengthFade;
+    float widthFade = 1.0 - vAcross * vAcross;
+    gl_FragColor = vec4(uColor * lengthFade * widthFade, 1.0);
+  }
+`
+
+const FLARE_VERT = `
+  #include <common>
+  #include <logdepthbuf_pars_vertex>
+  uniform float uFlareSize;
+  attribute vec2 aCorner;
+  varying vec2 vCorner;
+  void main() {
+    vec4 anchorView = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 offsetView = vec4(aCorner * uFlareSize, 0.0, 0.0);
+    gl_Position = projectionMatrix * (anchorView + offsetView);
+    vCorner = aCorner;
+    #include <logdepthbuf_vertex>
+  }
+`
+
+const FLARE_FRAG = `
+  #include <common>
+  #include <logdepthbuf_pars_fragment>
+  uniform vec3 uColor;
+  varying vec2 vCorner;
+  void main() {
+    #include <logdepthbuf_fragment>
+    float r2 = dot(vCorner, vCorner);
+    float core = exp(-r2 * 12.0) * 0.7;
+    float halo = exp(-r2 * 1.5) * 0.20;
+    float armX = exp(-vCorner.y * vCorner.y * 80.0) * exp(-vCorner.x * vCorner.x * 1.0) * 0.55;
+    float armY = exp(-vCorner.x * vCorner.x * 80.0) * exp(-vCorner.y * vCorner.y * 1.0) * 0.55;
+    float star = core + halo + armX + armY;
+    gl_FragColor = vec4(uColor * star, 1.0);
+  }
+`
+
+let trailGeometry: BufferGeometry | null = null
+let flareGeometry: BufferGeometry | null = null
+
+const getTrailGeometry = (): BufferGeometry => {
+  if (!trailGeometry) {
+    trailGeometry = buildTrailGeometry()
+  }
+
+  return trailGeometry
+}
+
+const getFlareGeometry = (): BufferGeometry => {
+  if (!flareGeometry) {
+    flareGeometry = buildFlareGeometry()
+  }
+
+  return flareGeometry
+}
+
+const createPlumeMaterial = (vertexShader: string, fragmentShader: string): ShaderMaterial =>
+  new ShaderMaterial({
     blending: AdditiveBlending,
+    depthWrite: false,
+    fragmentShader,
+    side: DoubleSide,
+    transparent: true,
+    uniforms: {
+      uColor: { value: [0, 0, 0] },
+      uFlareSize: { value: 0 },
+      uTrailLength: { value: 0 },
+    },
+    vertexShader,
   })
-  const mesh = new Mesh(geometry, material)
+
+const setupPlumeMesh = (mesh: Mesh, anchor: [number, number, number], name: string): void => {
   mesh.position.set(anchor[0], anchor[1], anchor[2])
-  // The ship's tail in buffer-local space sits at +Z (objectVertexTransform
-  // flips PRM Z). Our plume geometry grows along its own local +Z, so no
-  // rotation is needed — parent +Z aligns with geometry +Z.
   mesh.frustumCulled = false
   mesh.userData.isPlume = true
-  mesh.name = 'plume'
-  return mesh
+  mesh.name = name
+}
+
+export const createPlumeNozzle = (anchor: [number, number, number]): Mesh[] => {
+  const trail = new Mesh(getTrailGeometry(), createPlumeMaterial(TRAIL_VERT, TRAIL_FRAG))
+  setupPlumeMesh(trail, anchor, 'plume-trail')
+
+  const flare = new Mesh(getFlareGeometry(), createPlumeMaterial(FLARE_VERT, FLARE_FRAG))
+  setupPlumeMesh(flare, anchor, 'plume-flare')
+  flare.renderOrder = 1
+
+  return [trail, flare]
 }
