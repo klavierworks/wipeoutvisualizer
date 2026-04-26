@@ -1,8 +1,9 @@
 import { DataTexture, Group, Mesh } from 'three'
 
-import type { ObjectBundle, Vertex, WipeoutObject } from '../reader-bridge'
+import type { ObjectBundle, Polygon, Vertex, WipeoutObject } from '../reader-bridge'
 import type { Triangle } from './geometry'
 
+import { ENGINE_CLUSTER_RADIUS, ENGINE_TEXTURE_INDEX } from '../constants'
 import { buildGeometry } from './geometry'
 import { createMaterials, sceneMaterialOptions } from './materials'
 import { createPlumeNozzle } from './plume'
@@ -10,7 +11,61 @@ import { objectVertexTransform, polygonToTriangles } from './polygons'
 import { constructSprite, isSprite } from './sprites'
 import { createTextures } from './textures'
 
-const plumeAnchors = (vertices: Vertex[]): Vertex[] => {
+type EnginePolygon = Extract<Polygon, { indices: number[]; texture: number }>
+
+const isEnginePolygon = (polygon: Polygon): polygon is EnginePolygon =>
+  'indices' in polygon && 'texture' in polygon && polygon.texture === ENGINE_TEXTURE_INDEX
+
+const polygonCentroid = (polygon: EnginePolygon, vertices: Vertex[]): Vertex => {
+  let sx = 0
+  let sy = 0
+  let sz = 0
+
+  for (const index of polygon.indices) {
+    sx += vertices[index].x
+    sy += vertices[index].y
+    sz += vertices[index].z
+  }
+
+  const count = polygon.indices.length
+
+  return { x: sx / count, y: sy / count, z: sz / count }
+}
+
+const clusterAnchors = (centroids: Vertex[], radius: number): Vertex[] => {
+  const r2 = radius * radius
+  const clusters: { count: number; sum: Vertex }[] = []
+
+  for (const centroid of centroids) {
+    const merged = clusters.find((cluster) => {
+      const cx = cluster.sum.x / cluster.count
+      const cy = cluster.sum.y / cluster.count
+      const cz = cluster.sum.z / cluster.count
+      const dx = centroid.x - cx
+      const dy = centroid.y - cy
+      const dz = centroid.z - cz
+
+      return dx * dx + dy * dy + dz * dz < r2
+    })
+
+    if (merged) {
+      merged.sum.x += centroid.x
+      merged.sum.y += centroid.y
+      merged.sum.z += centroid.z
+      merged.count += 1
+    } else {
+      clusters.push({ count: 1, sum: { ...centroid } })
+    }
+  }
+
+  return clusters.map((cluster) => ({
+    x: cluster.sum.x / cluster.count,
+    y: cluster.sum.y / cluster.count,
+    z: cluster.sum.z / cluster.count,
+  }))
+}
+
+const minZAnchors = (vertices: Vertex[]): Vertex[] => {
   if (vertices.length === 0) {
     return []
   }
@@ -24,6 +79,18 @@ const plumeAnchors = (vertices: Vertex[]): Vertex[] => {
   }
 
   return vertices.filter((vertex) => vertex.z === minZ)
+}
+
+const plumeAnchors = (object: WipeoutObject): Vertex[] => {
+  const engineCentroids = object.polygons
+    .filter(isEnginePolygon)
+    .map((polygon) => polygonCentroid(polygon, object.vertices))
+
+  if (engineCentroids.length > 0) {
+    return clusterAnchors(engineCentroids, ENGINE_CLUSTER_RADIUS)
+  }
+
+  return minZAnchors(object.vertices)
 }
 
 export type BuiltObject = {
@@ -67,7 +134,7 @@ export const buildObject = (object: WipeoutObject, textures: DataTexture[], opti
   }
 
   if (options.applyPlume) {
-    for (const anchor of plumeAnchors(object.vertices)) {
+    for (const anchor of plumeAnchors(object)) {
       for (const mesh of createPlumeNozzle(objectVertexTransform(anchor))) {
         group.add(mesh)
       }

@@ -1,3 +1,4 @@
+import type { SectionInfo } from '../../../audio/preanalysis/sections'
 import type { BuiltExtras } from '../../../constructor'
 
 import AtlasRow from './AtlasRow/AtlasRow'
@@ -6,24 +7,22 @@ import { useHudReadouts } from './useHudReadouts'
 
 type HudProps = {
   extras: BuiltExtras | null
+  offlineSections: null | SectionInfo[]
 }
 
 const formatStateValue = (value: unknown): string => (typeof value === 'number' ? value.toFixed(2) : String(value))
 
-const Hud = ({ extras }: HudProps) => {
-  const { sectionRemaining, snapshot, tempo, trackRemaining } = useHudReadouts()
+const Hud = ({ extras, offlineSections }: HudProps) => {
+  const { sectionRemaining, snapshot, tempo, trackRemaining } = useHudReadouts(offlineSections)
 
   return (
     <div className={styles.hud}>
       <div className={styles.positions}>
-        {Object.entries(snapshot).map(
-          ([key, value]) =>
-            key !== 'sections' && (
-              <div key={key}>
-                <strong>{key}:</strong> {formatStateValue(value)}
-              </div>
-            ),
-        )}
+        {Object.entries(snapshot).map(([key, value]) => (
+          <div key={key}>
+            <strong>{key}:</strong> {formatStateValue(value)}
+          </div>
+        ))}
       </div>
       <div className={styles.check}>
         {'Check'}

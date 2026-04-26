@@ -1,92 +1,105 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
-import type { AnalyzeResult } from '../../../audio/analyze'
+import type { Pipeline } from '../../../audio/pipeline'
 
-import { AudioEngine } from '../../../audio/engine'
-import { FeatureExtractor } from '../../../audio/features'
+import { wirePipeline } from '../../../audio/pipeline'
+import { createFileSource } from '../../../audio/source/createFileSource'
+import { createMicSource } from '../../../audio/source/createMicSource'
 import styles from './AudioProvider.module.css'
-import { loadAndAnalyze } from './loadAndAnalyze'
-import { startPlayback } from './startPlayback'
+import SourcePicker from './SourcePicker/SourcePicker'
 
 type AudioProviderProps = {
   children: (audio: ProvidedAudio) => ReactNode
-  src: string
 }
 
 type LoadState =
-  | { analysis: AnalyzeResult; duration: number; kind: 'playing' }
-  | { analysis: AnalyzeResult; duration: number; kind: 'ready' }
   | { kind: 'error'; message: string }
-  | { kind: 'loading' }
+  | { kind: 'loading'; label: string }
+  | { kind: 'pick' }
+  | { kind: 'playing'; pipeline: Pipeline }
+  | { kind: 'ready'; pipeline: Pipeline; summary: string }
 
-type ProvidedAudio = { analysis: AnalyzeResult; engine: AudioEngine }
+type ProvidedAudio = { pipeline: Pipeline }
 
-const summarizeAnalysis = (analysis: AnalyzeResult): string => {
-  const segments = analysis.tempoSegments.length
+const summarizeFilePipeline = (pipeline: Pipeline): string => {
+  const analysis = pipeline.offlineAnalysis
+
+  if (!analysis) {
+    return 'Live microphone input'
+  }
+
   const sections = analysis.sections.length
-  const segmentLabel = segments === 1 ? 'segment' : 'segments'
   const sectionLabel = sections === 1 ? 'section' : 'sections'
 
-  return `${analysis.bpm.toFixed(1)} BPM · ${segments} tempo ${segmentLabel} · ${sections} ${sectionLabel}`
+  return `${sections} ${sectionLabel}`
 }
 
-const AudioProvider = ({ children, src }: AudioProviderProps) => {
-  const engineRef = useRef<AudioEngine | null>(null)
-  const featuresRef = useRef<FeatureExtractor | null>(null)
-  const [state, setState] = useState<LoadState>({ kind: 'loading' })
+const AudioProvider = ({ children }: AudioProviderProps) => {
+  const pipelineRef = useRef<null | Pipeline>(null)
+  const [state, setState] = useState<LoadState>({ kind: 'pick' })
 
-  useEffect(() => {
-    let isCancelled = false
-    const engine = new AudioEngine()
+  const handlePickFile = useCallback(async (file: File) => {
+    setState({ kind: 'loading', label: 'Loading & analyzing…' })
 
-    engineRef.current = engine
+    try {
+      const source = await createFileSource(file)
+      const pipeline = await wirePipeline(source)
 
-    loadAndAnalyze(engine, src)
-      .then(({ analysis, duration }) => {
-        if (isCancelled) {
-          return
-        }
-
-        setState({ analysis, duration, kind: 'ready' })
-      })
-      .catch((error) => {
-        if (!isCancelled) {
-          setState({ kind: 'error', message: String(error) })
-        }
-      })
-
-    return () => {
-      isCancelled = true
-      featuresRef.current?.stop()
-      engine.pause()
+      pipelineRef.current = pipeline
+      setState({ kind: 'ready', pipeline, summary: summarizeFilePipeline(pipeline) })
+    } catch (error) {
+      setState({ kind: 'error', message: String(error) })
     }
-  }, [src])
+  }, [])
 
-  const handlePlay = useCallback(async () => {
-    const engine = engineRef.current
+  const handlePickMic = useCallback(async () => {
+    setState({ kind: 'loading', label: 'Requesting microphone…' })
 
-    if (!engine || state.kind !== 'ready') {
+    try {
+      const source = await createMicSource()
+      const pipeline = await wirePipeline(source)
+
+      pipelineRef.current = pipeline
+      setState({ kind: 'ready', pipeline, summary: 'Live microphone input' })
+    } catch (error) {
+      setState({ kind: 'error', message: String(error) })
+    }
+  }, [])
+
+  const handleStart = useCallback(async () => {
+    if (state.kind !== 'ready') {
       return
     }
 
-    featuresRef.current = await startPlayback(engine, src, state.analysis, state.duration)
+    await state.pipeline.start()
+    setState({ kind: 'playing', pipeline: state.pipeline })
+  }, [state])
 
-    setState({ analysis: state.analysis, duration: state.duration, kind: 'playing' })
-  }, [state, src])
+  useEffect(
+    () => () => {
+      pipelineRef.current?.dispose()
+      pipelineRef.current = null
+    },
+    [],
+  )
 
   if (state.kind === 'playing') {
-    return <>{children({ analysis: state.analysis, engine: engineRef.current! })}</>
+    return <>{children({ pipeline: state.pipeline })}</>
+  }
+
+  if (state.kind === 'pick') {
+    return <SourcePicker onPickFile={handlePickFile} onPickMic={handlePickMic} />
   }
 
   return (
     <div className={styles.overlay}>
       <div className={styles.panel}>
         <p className={styles.title}>Audio Visualizer</p>
-        {state.kind === 'loading' && <p className={styles.meta}>Loading track & analyzing…</p>}
+        {state.kind === 'loading' && <p className={styles.meta}>{state.label}</p>}
         {state.kind === 'ready' && (
           <>
-            <p className={styles.meta}>{summarizeAnalysis(state.analysis)}</p>
-            <button className={styles.button} onClick={handlePlay}>
+            <p className={styles.meta}>{state.summary}</p>
+            <button className={styles.button} onClick={handleStart}>
               Start
             </button>
           </>

@@ -1,24 +1,50 @@
 import { DoubleSide, Group, Mesh, MeshBasicMaterial } from 'three'
 
+import type { SectionInfo } from '../../../../audio/preanalysis/sections'
+
 import { audioState } from '../../../../audio'
 import { SKY_FADE_SECONDS } from '../../../../constants'
 
 export type SkyRole = 'current' | 'next'
 
-export const computeFade = (): number => {
-  const section = audioState.sections[audioState.sectionIndex]
-  const timeToNext = section ? Math.max(0, section.duration - audioState.sectionTime) : Infinity
+const findCurrentSection = (sections: SectionInfo[], time: number): null | SectionInfo => {
+  for (let i = sections.length - 1; i >= 0; i--) {
+    if (time >= sections[i].start) {
+      return sections[i]
+    }
+  }
+
+  return null
+}
+
+export const computeFade = (offlineSections: null | SectionInfo[]): number => {
+  if (!offlineSections || offlineSections.length === 0) {
+    return 0
+  }
+
+  const section = findCurrentSection(offlineSections, audioState.time)
+
+  if (!section) {
+    return 0
+  }
+
+  const timeIntoSection = audioState.time - section.start
+  const timeToNext = Math.max(0, section.duration - timeIntoSection)
 
   return Math.max(0, Math.min(1, 1 - timeToNext / SKY_FADE_SECONDS))
 }
 
-const configureMaterial = (material: MeshBasicMaterial, isNext: boolean): void => {
+const configureMaterial = (
+  material: MeshBasicMaterial,
+  isNext: boolean,
+  offlineSections: null | SectionInfo[],
+): void => {
   material.side = DoubleSide
 
   if (isNext) {
     material.transparent = true
     material.alphaTest = 0
-    material.opacity = computeFade()
+    material.opacity = computeFade(offlineSections)
     material.depthWrite = false
 
     return
@@ -28,7 +54,11 @@ const configureMaterial = (material: MeshBasicMaterial, isNext: boolean): void =
   material.opacity = 1
 }
 
-export const configureSkyMaterials = (object: Group, role: SkyRole): MeshBasicMaterial[] => {
+export const configureSkyMaterials = (
+  object: Group,
+  role: SkyRole,
+  offlineSections: null | SectionInfo[],
+): MeshBasicMaterial[] => {
   const isNext = role === 'next'
   const collected: MeshBasicMaterial[] = []
 
@@ -43,7 +73,7 @@ export const configureSkyMaterials = (object: Group, role: SkyRole): MeshBasicMa
     for (const entry of list) {
       const material = entry as MeshBasicMaterial
 
-      configureMaterial(material, isNext)
+      configureMaterial(material, isNext, offlineSections)
       collected.push(material)
     }
   })

@@ -1,8 +1,32 @@
 import type { AnalyzeResult } from './analyze.worker'
 
-export type { AnalyzeResult, SectionMarker, TempoSegment } from './analyze.worker'
+export type { AnalyzeResult, SectionMarker } from './analyze.worker'
 
-export const analyzeTrack = (buffer: AudioBuffer): Promise<AnalyzeResult> => {
+const mixdown = (buffer: AudioBuffer): Float32Array => {
+  const length = buffer.length
+  const channels = buffer.numberOfChannels
+  const out = new Float32Array(length)
+
+  for (let c = 0; c < channels; c++) {
+    const data = buffer.getChannelData(c)
+
+    for (let i = 0; i < length; i++) {
+      out[i] += data[i]
+    }
+  }
+
+  if (channels > 1) {
+    const scale = 1 / channels
+
+    for (let i = 0; i < length; i++) {
+      out[i] *= scale
+    }
+  }
+
+  return out
+}
+
+export const runOfflineAnalysis = (buffer: AudioBuffer): Promise<AnalyzeResult> => {
   const mono = mixdown(buffer)
 
   return new Promise((resolve, reject) => {
@@ -27,28 +51,4 @@ export const analyzeTrack = (buffer: AudioBuffer): Promise<AnalyzeResult> => {
 
     worker.postMessage({ pcm: mono, sampleRate: buffer.sampleRate }, [mono.buffer])
   })
-}
-
-const mixdown = (buffer: AudioBuffer): Float32Array => {
-  const length = buffer.length
-  const channels = buffer.numberOfChannels
-  const out = new Float32Array(length)
-
-  for (let c = 0; c < channels; c++) {
-    const data = buffer.getChannelData(c)
-
-    for (let i = 0; i < length; i++) {
-      out[i] += data[i]
-    }
-  }
-
-  if (channels > 1) {
-    const scale = 1 / channels
-
-    for (let i = 0; i < length; i++) {
-      out[i] *= scale
-    }
-  }
-
-  return out
 }

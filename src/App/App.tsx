@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import Loading from './Loading/Loading'
 import { resolveLevelPaths } from './resolveLevelPaths'
+import { resolveShipIndex } from './resolveShipIndex'
 import { useLevelLoader } from './useLevelLoader'
 import World from './World/World'
 
@@ -13,6 +14,7 @@ const readDebugFlag = (): boolean => new URLSearchParams(window.location.search)
 const App = () => {
   const { isPinned, paths: levelPaths } = useMemo(resolveLevelPaths, [])
   const isDebug = useMemo(readDebugFlag, [])
+  const shipIndex = useMemo(resolveShipIndex, [])
 
   const { extras, levels, progress } = useLevelLoader(levelPaths)
 
@@ -54,6 +56,7 @@ const App = () => {
       isPinned={isPinned}
       leaderMeshOverride={leaderMeshOverride}
       levels={levels}
+      shipIndex={shipIndex}
     />
   )
 }

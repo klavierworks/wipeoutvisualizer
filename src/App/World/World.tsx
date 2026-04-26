@@ -25,6 +25,7 @@ type WorldProps = {
   isPinned: boolean
   leaderMeshOverride: Group | null
   levels: Built[]
+  shipIndex: null | number
 }
 
 const pickDifferent = (length: number, exclude: number): number => {
@@ -41,7 +42,7 @@ const pickDifferent = (length: number, exclude: number): number => {
   return pick
 }
 
-const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels }: WorldProps) => {
+const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipIndex }: WorldProps) => {
   const leaderRef = useRef<Group | null>(null)
   const leaderTRef = useRef<number>(0)
   const leaderSplineIndexRef = useRef<number>(0)
@@ -59,17 +60,17 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels }: WorldP
   const next = levels[indexes.next]
 
   const handleSection = useCallback(
-    (sectionIndex: number, strength: number) => {
+    (strength: number) => {
       if (isPinned) {
         return
       }
 
       if (strength < LEVEL_ADVANCE_STRENGTH) {
-        console.log(`[level] section ${sectionIndex} strength ${strength.toFixed(2)} → no swap`)
+        console.log(`[level] section change strength ${strength.toFixed(2)} → no swap`)
         return
       }
 
-      console.log(`[level] section ${sectionIndex} strength ${strength.toFixed(2)} → advance level`)
+      console.log(`[level] section change strength ${strength.toFixed(2)} → advance level`)
 
       setIndexes((prev) => ({ current: prev.next, next: pickDifferent(levels.length, prev.next) }))
     },
@@ -77,16 +78,26 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels }: WorldP
   )
 
   return (
-    <AudioProvider src="/sample.mp3">
-      {({ analysis, engine }) => (
+    <AudioProvider>
+      {({ pipeline }) => (
         <>
           <Canvas camera={{ far: 1000000, near: 0.1 }} gl={{ logarithmicDepthBuffer: true }}>
-            <AudioTicker analysis={analysis} engine={engine} />
-            <LevelSwapper onSection={handleSection} sections={analysis.sections} />
+            <AudioTicker pipeline={pipeline} />
+            <LevelSwapper onSection={handleSection} />
             <Billboards />
             <SkyboxLayer>
-              <Sky key={`sky-current-${indexes.current}`} object={current.sky} role="current" />
-              <Sky key={`sky-next-${indexes.next}`} object={next.sky} role="next" />
+              <Sky
+                key={`sky-current-${indexes.current}`}
+                object={current.sky}
+                offlineSections={pipeline.offlineSections}
+                role="current"
+              />
+              <Sky
+                key={`sky-next-${indexes.next}`}
+                object={next.sky}
+                offlineSections={pipeline.offlineSections}
+                role="next"
+              />
             </SkyboxLayer>
             <Scene bundle={current.scene} />
             <Track
@@ -105,6 +116,7 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels }: WorldP
               racerLanesRef={racerLanesRef}
               racerSplineIndexesRef={racerSplineIndexesRef}
               racerTsRef={racerTsRef}
+              shipIndex={shipIndex}
               ships={current.ships}
             />
             {isDebug ? (
@@ -118,7 +130,7 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels }: WorldP
               />
             )}
           </Canvas>
-          <Hud extras={extras} />
+          <Hud extras={extras} offlineSections={pipeline.offlineSections} />
         </>
       )}
     </AudioProvider>

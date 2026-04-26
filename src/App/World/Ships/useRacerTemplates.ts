@@ -13,15 +13,28 @@ const pickAlternative = (pool: Group[], current: Group): Group => {
 
 const pickAny = (pool: Group[]): Group => pool[Math.floor(Math.random() * pool.length)]
 
+const pickPinnedOrAny = (pool: Group[], pinnedIndex: null | number | undefined): Group => {
+  if (pinnedIndex !== null && pinnedIndex !== undefined) {
+    if (pinnedIndex >= 0 && pinnedIndex < pool.length) {
+      return pool[pinnedIndex]
+    }
+
+    console.warn(`[ship] index ${pinnedIndex} out of range (0..${pool.length - 1}); using random`)
+  }
+
+  return pickAny(pool)
+}
+
 export const useRacerTemplates = (
   meshes: Group[],
   leaderOverride: Group | null | undefined,
+  pinnedLeaderIndex: null | number | undefined,
   count: number,
 ): Group[] => {
   const leaderInitialRef = useRef<Group | null>(null)
 
   if (leaderInitialRef.current === null) {
-    leaderInitialRef.current = pickAny(meshes)
+    leaderInitialRef.current = pickPinnedOrAny(meshes, pinnedLeaderIndex)
   }
 
   const [templates, setTemplates] = useState<Group[]>(() =>
@@ -41,7 +54,7 @@ export const useRacerTemplates = (
 
     setTemplates((previous) =>
       previous.map((current, i) =>
-        i === 0 ? (leaderOverride ?? pickAny(meshes)) : pickAlternative(meshes, current),
+        i === 0 ? (leaderOverride ?? pickPinnedOrAny(meshes, pinnedLeaderIndex)) : pickAlternative(meshes, current),
       ),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps

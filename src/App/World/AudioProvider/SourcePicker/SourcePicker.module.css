@@ -1,0 +1,77 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 12, 20, 0.85);
+  color: #e8ecff;
+  font: 500 14px/1.4 Inter, system-ui, sans-serif;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 36px;
+  border: 2px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(20, 22, 34, 0.9);
+  min-width: 320px;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.panelHover {
+  border-color: rgba(91, 125, 255, 0.7);
+  background: rgba(28, 32, 50, 0.95);
+}
+
+.title {
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.meta {
+  font-size: 12px;
+  color: rgba(232, 236, 255, 0.7);
+  margin: 0 0 8px 0;
+}
+
+.fileInput {
+  display: none;
+}
+
+.button {
+  padding: 10px 24px;
+  background: #5b7dff;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #708bff;
+}
+
+.buttonSecondary {
+  padding: 10px 24px;
+  background: transparent;
+  color: #e8ecff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.buttonSecondary:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+}

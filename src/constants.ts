@@ -103,6 +103,8 @@ export const WARP_FLY_DISTANCE = 60
 // ─── Plume ───────────────────────────────────────────────────────────────
 export const BOOST_FACTOR_LERP = 6
 export const PLUME_BOOST_BPM = 140
+export const ENGINE_TEXTURE_INDEX = 16
+export const ENGINE_CLUSTER_RADIUS = 50
 
 export const PLUME_BPM_TRAIL_LENGTH: Record<number, number> = {
   0: 0,

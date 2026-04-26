@@ -1,3 +1,6 @@
-export type { AnalyzeResult, SectionMarker, TempoSegment } from './analyze'
+export type { Pipeline } from './pipeline'
+export type { AnalyzeResult, SectionMarker } from './preanalysis/analyze.worker'
+export type { SectionInfo } from './preanalysis/sections'
+export type { FileSource, MicSource, Source } from './source/types'
 export { audioState } from './state'
-export type { AudioState, SectionInfo } from './state'
+export type { AudioState, SourceKind } from './state'

@@ -1,210 +1,114 @@
-import type { SectionMarker, TempoSegment } from './analyze.worker'
+import type { SectionInfo } from './preanalysis/sections'
 
-import { BEATS_PER_BAR, RAMP_SEC } from './constants'
-import { audioState, type SectionInfo } from './state'
+import { BEATS_PER_BAR, STALE_BEAT_PERIODS } from './constants'
+import { audioState } from './state'
 
-export type TempoTable = {
-  nodes: TempoNode[]
-  offset: number
+export type ClockState = {
+  beatCount: number
+  bpm: number
+  bpmConfidence: number
+  lastBeatTime: null | number
 }
 
 export type TickHint = {
   section: number
-  tempoSegment: number
 }
 
-type RampPoint = { bpm: number; time: number }
+export const createClockState = (): ClockState => ({
+  beatCount: 0,
+  bpm: 0,
+  bpmConfidence: 0,
+  lastBeatTime: null,
+})
 
-type TempoNode = {
-  beatAtTime: number
-  bpm: number
-  time: number
+export const recordBeat = (state: ClockState, time: number, bpm: number, confidence: number): void => {
+  state.beatCount += 1
+  state.lastBeatTime = time
+  state.bpm = bpm
+  state.bpmConfidence = confidence
 }
 
-const insertRamps = (segments: TempoSegment[]): RampPoint[] => {
-  const points: RampPoint[] = [{ bpm: segments[0].bpm, time: segments[0].start }]
-
-  for (let i = 0; i < segments.length - 1; i++) {
-    const before = segments[i]
-    const after = segments[i + 1]
-
-    if (before.bpm === after.bpm) {
-      continue
-    }
-
-    const boundary = before.end
-    const halfBefore = Math.min(RAMP_SEC / 2, (before.end - before.start) / 2)
-    const halfAfter = Math.min(RAMP_SEC / 2, (after.end - after.start) / 2)
-
-    points.push({ bpm: before.bpm, time: boundary - halfBefore })
-    points.push({ bpm: after.bpm, time: boundary + halfAfter })
-  }
-
-  const last = segments[segments.length - 1]
-
-  points.push({ bpm: last.bpm, time: last.end })
-
-  return points.sort((x, y) => x.time - y.time)
+const writeIdle = (state: ClockState): void => {
+  state.beatCount = 0
+  state.lastBeatTime = null
+  state.bpm = 0
+  state.bpmConfidence = 0
+  audioState.bpm = 0
+  audioState.bpmConfidence = 0
+  audioState.beat = 0
+  audioState.beatPhase = 0
+  audioState.bar = 0
+  audioState.barPhase = 0
 }
 
-const dedupeNearby = (points: RampPoint[]): RampPoint[] => {
-  const out: RampPoint[] = []
-
-  for (const point of points) {
-    const previous = out[out.length - 1]
-
-    if (previous && Math.abs(previous.time - point.time) < 1e-6) {
-      previous.bpm = point.bpm
-      continue
-    }
-
-    out.push(point)
-  }
-
-  return out
-}
-
-const integrateBeats = (points: RampPoint[]): TempoNode[] => {
-  const nodes: TempoNode[] = []
-  let beat = 0
-
-  for (let i = 0; i < points.length; i++) {
-    const current = points[i]
-
-    if (i > 0) {
-      const previous = points[i - 1]
-      const dt = current.time - previous.time
-
-      beat += (((previous.bpm + current.bpm) / 2) * dt) / 60
-    }
-
-    nodes.push({ beatAtTime: beat, bpm: current.bpm, time: current.time })
-  }
-
-  return nodes
-}
-
-export const buildTempoTable = (segments: TempoSegment[], offset: number): TempoTable => {
-  if (segments.length === 0) {
-    return { nodes: [{ beatAtTime: 0, bpm: 120, time: 0 }], offset }
-  }
-
-  return { nodes: integrateBeats(dedupeNearby(insertRamps(segments))), offset }
-}
-
-const findNode = (nodes: TempoNode[], time: number, hint: number): number => {
-  let i = hint
-
-  if (i < 0 || i >= nodes.length) {
-    i = 0
-  }
-
-  while (i < nodes.length - 1 && time >= nodes[i + 1].time) {
-    i++
-  }
-
-  while (i > 0 && time < nodes[i].time) {
-    i--
-  }
-
-  return i
-}
-
-const bpmAt = (segments: TempoSegment[], time: number): number => {
-  for (const segment of segments) {
-    if (time < segment.end) {
-      return segment.bpm
-    }
-  }
-
-  return segments[segments.length - 1]?.bpm ?? 120
-}
-
-export const buildSections = (
-  markers: SectionMarker[],
-  tempoSegments: TempoSegment[],
-  trackDuration: number,
-): SectionInfo[] =>
-  markers.map((marker, i) => {
-    const start = marker.time
-    const end = i + 1 < markers.length ? markers[i + 1].time : trackDuration
-
-    return {
-      bpm: bpmAt(tempoSegments, start),
-      duration: Math.max(0, end - start),
-      start,
-      strength: marker.strength,
-    }
-  })
-
-const fract = (value: number): number => {
-  const f = value - Math.floor(value)
-
-  return f < 0 ? f + 1 : f
-}
-
-const interpolateAtNode = (current: TempoNode, next: null | TempoNode, time: number): { beat: number; bpm: number } => {
-  if (!next) {
-    const dt = time - current.time
-
-    return { beat: current.beatAtTime + (current.bpm * dt) / 60, bpm: current.bpm }
-  }
-
-  const span = next.time - current.time
-
-  if (span <= 0) {
-    return { beat: next.beatAtTime, bpm: next.bpm }
-  }
-
-  const dt = time - current.time
-  const slope = (next.bpm - current.bpm) / span
-
-  return {
-    beat: current.beatAtTime + (current.bpm * dt + 0.5 * slope * dt * dt) / 60,
-    bpm: current.bpm + slope * dt,
-  }
-}
-
-export const tickClock = (currentTime: number, table: TempoTable, hint: TickHint): TickHint => {
-  const shifted = currentTime - table.offset
-  const nodes = table.nodes
-  const index = findNode(nodes, shifted, hint.tempoSegment)
-  const current = nodes[index]
-  const next = index + 1 < nodes.length ? nodes[index + 1] : null
-  const { beat, bpm } = interpolateAtNode(current, next, shifted)
-  const bar = beat / BEATS_PER_BAR
-
+export const tickClock = (currentTime: number, state: ClockState): void => {
   audioState.time = currentTime
-  audioState.bpm = bpm
-  audioState.beat = beat
-  audioState.beatPhase = fract(beat)
-  audioState.bar = bar
-  audioState.barPhase = fract(bar)
+  audioState.bpm = state.bpm
+  audioState.bpmConfidence = state.bpmConfidence
 
-  return { section: hint.section, tempoSegment: index }
+  if (state.lastBeatTime === null || state.bpm <= 0) {
+    audioState.beat = 0
+    audioState.beatPhase = 0
+    audioState.bar = 0
+    audioState.barPhase = 0
+
+    return
+  }
+
+  const period = 60 / state.bpm
+  const elapsed = currentTime - state.lastBeatTime
+
+  if (elapsed > period * STALE_BEAT_PERIODS) {
+    writeIdle(state)
+
+    return
+  }
+
+  const phase = Math.max(0, Math.min(1, elapsed / period))
+  const fractionalBeat = state.beatCount + phase
+
+  audioState.beat = fractionalBeat
+  audioState.beatPhase = phase
+  audioState.bar = fractionalBeat / BEATS_PER_BAR
+  audioState.barPhase = (fractionalBeat % BEATS_PER_BAR) / BEATS_PER_BAR
 }
 
-const findSectionIndex = (sections: SectionMarker[], currentTime: number, hint: number): number => {
+export const tickSectionTime = (currentTime: number): void => {
+  audioState.sectionTime = Math.max(0, currentTime - audioState.sectionStart)
+}
+
+const findOfflineSectionIndex = (sections: SectionInfo[], currentTime: number, hint: number): number => {
   let index = hint
 
-  while (index + 1 < sections.length && currentTime >= sections[index + 1].time) {
+  if (index < 0 || index >= sections.length) {
+    index = 0
+  }
+
+  while (index + 1 < sections.length && currentTime >= sections[index + 1].start) {
     index++
   }
 
-  while (index > 0 && currentTime < sections[index].time) {
+  while (index > 0 && currentTime < sections[index].start) {
     index--
   }
 
   return index
 }
 
-export const tickSection = (currentTime: number, sections: SectionMarker[], hint: TickHint): TickHint => {
-  const index = findSectionIndex(sections, currentTime, hint.section)
-  const start = sections[index]?.time ?? 0
+export const advanceOfflineSections = (currentTime: number, sections: SectionInfo[], hint: TickHint): TickHint => {
+  if (sections.length === 0) {
+    return hint
+  }
 
-  audioState.sectionIndex = index
-  audioState.sectionStart = start
-  audioState.sectionTime = Math.max(0, currentTime - start)
+  const index = findOfflineSectionIndex(sections, currentTime, hint.section)
 
-  return { section: index, tempoSegment: hint.tempoSegment }
+  if (index !== hint.section) {
+    const next = sections[index]
+
+    audioState.sectionStart = next.start
+    audioState.sectionStrength = next.strength
+    audioState.sectionChangeCount += 1
+  }
+
+  return { section: index }
 }

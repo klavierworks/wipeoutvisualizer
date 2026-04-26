@@ -17,6 +17,7 @@ type ShipsProps = {
   racerLanesRef?: MutableRefObject<Float32Array>
   racerSplineIndexesRef?: MutableRefObject<Int32Array>
   racerTsRef?: MutableRefObject<Float32Array>
+  shipIndex?: null | number
   ships: Built['ships']
 }
 
@@ -28,13 +29,14 @@ const Ships = ({
   racerLanesRef,
   racerSplineIndexesRef,
   racerTsRef,
+  shipIndex,
   ships,
 }: ShipsProps) => {
   const configsRef = useRef<RacerConfig[]>(
     Array.from({ length: RACER_COUNT }, (_, i) => makeRacerConfig(i, RACER_COUNT, ships.splines.length))
   );
 
-  const templates = useRacerTemplates(ships.meshes, leaderMeshOverride, RACER_COUNT)
+  const templates = useRacerTemplates(ships.meshes, leaderMeshOverride, shipIndex, RACER_COUNT)
 
   const leaderOutputs = useMemo<LeaderOutputs | undefined>(() => {
     if (!leaderRef || !leaderTRef || !leaderSplineIndexRef) {

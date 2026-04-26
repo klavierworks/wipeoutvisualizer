@@ -1,22 +1,21 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 
-import { audioState, type SectionMarker } from '../../../audio'
+import { audioState } from '../../../audio'
 
 type LevelSwapperProps = {
-  onSection: (index: number, strength: number) => void
-  sections: SectionMarker[]
+  onSection: (strength: number) => void
 }
 
-const LevelSwapper = ({ onSection, sections }: LevelSwapperProps) => {
-  const last = useRef(audioState.sectionIndex)
+const LevelSwapper = ({ onSection }: LevelSwapperProps) => {
+  const lastChangeCount = useRef(audioState.sectionChangeCount)
 
   useFrame(() => {
-    const index = audioState.sectionIndex
+    const count = audioState.sectionChangeCount
 
-    if (index !== last.current) {
-      last.current = index
-      onSection(index, sections[index]?.strength ?? 0)
+    if (count !== lastChangeCount.current) {
+      lastChangeCount.current = count
+      onSection(audioState.sectionStrength)
     }
   })
 
