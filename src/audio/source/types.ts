@@ -2,20 +2,19 @@ export type FileSource = {
   audioContext: AudioContext
   buffer: AudioBuffer
   dispose: () => void
-  element: HTMLAudioElement
-  ensureRunning: () => void
+  ensureRunning: () => Promise<void>
   getCurrentTime: () => number
   getDuration: () => number
   isPlaying: () => boolean
   kind: 'file'
-  node: MediaElementAudioSourceNode
+  node: AudioNode
   play: () => Promise<void>
 }
 
 export type MicSource = {
   audioContext: AudioContext
   dispose: () => void
-  ensureRunning: () => void
+  ensureRunning: () => Promise<void>
   getCurrentTime: () => number
   getDuration: () => null
   isPlaying: () => boolean

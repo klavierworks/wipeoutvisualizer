@@ -6,9 +6,9 @@ const MIC_CONSTRAINTS: MediaTrackConstraints = {
   noiseSuppression: false,
 }
 
-const ensureContextRunning = (context: AudioContext): void => {
+const ensureContextRunning = async (context: AudioContext): Promise<void> => {
   if (context.state === 'suspended') {
-    void context.resume()
+    await context.resume()
   }
 }
 

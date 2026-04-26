@@ -113,7 +113,7 @@ export const wirePipeline = async (source: Source): Promise<Pipeline> => {
     offlineSections,
     source,
     start: async () => {
-      source.ensureRunning()
+      await source.ensureRunning()
 
       if (source.kind === 'file') {
         await source.play()
@@ -126,7 +126,7 @@ export const wirePipeline = async (source: Source): Promise<Pipeline> => {
       audioState.isReady = true
     },
     tickFrame: (dt) => {
-      source.ensureRunning()
+      void source.ensureRunning()
 
       const currentTime = source.getCurrentTime()
 

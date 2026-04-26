@@ -100,6 +100,52 @@ export const WARP_IN_DURATION = 0.5
 export const INCOMING_DELAY = 0.25 * WARP_OUT_DURATION
 export const WARP_FLY_DISTANCE = 60
 
+// ─── Reactivity: section energy ──────────────────────────────────────────
+export const SECTION_ENERGY_RMS_GAIN = 4
+export const SECTION_ENERGY_RMS_WEIGHT = 0.7
+export const SECTION_ENERGY_STRENGTH_WEIGHT = 0.3
+export const SECTION_ENERGY_LERP = 1.5
+
+// ─── Reactivity: ship speed ──────────────────────────────────────────────
+export const SHIP_SPEED_QUIET_MULTIPLIER = 0.75
+export const SHIP_SPEED_LOUD_MULTIPLIER = 1.35
+
+// ─── Reactivity: ship speed by BPM ───────────────────────────────────────
+export const SHIP_BPM_SPEED_MULTIPLIER: Record<number, number> = {
+  0: 0,
+  60: 0.45,
+  100: 0.75,
+  120: 0.9,
+  140: 1,
+}
+
+// ─── Reactivity: chase camera ────────────────────────────────────────────
+export const CAMERA_FOV_BASE = 60
+export const CAMERA_FOV_BASS_RANGE = 2
+export const CAMERA_FOV_LERP = 3
+export const CAMERA_KICK_SHAKE_THRESHOLD = 0.7
+export const CAMERA_KICK_SHAKE_MAGNITUDE = 12
+export const CAMERA_KICK_SHAKE_DECAY = 6
+
+// ─── Reactivity: ship bank on kick ───────────────────────────────────────
+export const SHIP_BANK_KICK_THRESHOLD = 0.6
+export const SHIP_BANK_KICK_AMOUNT = 0.05
+export const SHIP_BANK_KICK_DECAY = 8
+
+// ─── Reactivity: beat lights downbeat emphasis ───────────────────────────
+export const BEAT_LIGHT_DOWNBEAT_BONUS = 0.6
+
+// ─── Reactivity: weapon tiles snare drive ────────────────────────────────
+export const WEAPON_SNARE_THRESHOLD = 0.45
+
+// ─── Reactivity: boost tiles kick drive ──────────────────────────────────
+export const BOOST_KICK_THRESHOLD = 0.55
+export const BOOST_KICK_TILE_FRACTION = 0.25
+
+// ─── Reactivity: sky section-energy tint ─────────────────────────────────
+export const SKY_TINT_QUIET = 0.78
+export const SKY_TINT_LOUD = 1.12
+
 // ─── Plume ───────────────────────────────────────────────────────────────
 export const BOOST_FACTOR_LERP = 6
 export const PLUME_BOOST_BPM = 140
@@ -127,3 +173,7 @@ export const PLUME_BPM_COLOR: Record<number, [number, number, number]> = {
   100: [0.1, 0.4, 1.2],
   140: [0.1, 0.4, 1.2],
 }
+
+// ─── Plume: bass overlay (in-song dynamics on top of BPM map) ────────────
+export const PLUME_BASS_TRAIL_GAIN = 200
+export const PLUME_BASS_FLARE_GAIN = 8

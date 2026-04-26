@@ -30,6 +30,8 @@ import {
   TWO_PI,
   WALL_STRESS_DECAY,
 } from '../../../constants'
+import { calculateBpmSpeedMultiplier } from '../../../reactivity/derive/calculateBpmSpeedMultiplier'
+import { calculateShipSpeedMultiplier } from '../../../reactivity/derive/calculateShipSpeedMultiplier'
 import { pickSplineIndex } from './racerConfig'
 import { clamp, sampleTrackUp, splineLane } from './splineSampling'
 
@@ -148,7 +150,9 @@ export const advanceAlongSpline = (motion: RacerMotion, config: RacerConfig, spl
   const intrinsic = 1 + Math.sin(motion.t * config.speedFrequency * TWO_PI + config.speedPhase) * config.speedAmplitude
   const barSurge = 1 + Math.sin((audioState.barPhase + config.barOffset) * TWO_PI) * BAR_GAIN
   const tileBoost = 1 + motion.boostFactor * (BOOST_TILE_GAIN - 1)
-  const speedFactor = intrinsic * audioBassBoost() * barSurge * tileBoost
+  const sectionEnergyMultiplier = calculateShipSpeedMultiplier()
+  const bpmMultiplier = calculateBpmSpeedMultiplier()
+  const speedFactor = intrinsic * audioBassBoost() * barSurge * tileBoost * sectionEnergyMultiplier * bpmMultiplier
   const stressFactor = Math.max(0, 1 - motion.wallStress)
   const previousT = motion.t
 

@@ -12,6 +12,7 @@ import Billboards from './Billboards/Billboards'
 import ChaseCamera from './ChaseCamera/ChaseCamera'
 import Hud from './Hud/Hud'
 import LevelSwapper from './LevelSwapper/LevelSwapper'
+import ReactivityTicker from './ReactivityTicker/ReactivityTicker'
 import Scene from './Scene/Scene'
 import Ships from './Ships/Ships'
 import Sky from './SkyboxLayer/Sky/Sky'
@@ -83,6 +84,7 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
         <>
           <Canvas camera={{ far: 1000000, near: 0.1 }} gl={{ logarithmicDepthBuffer: true }}>
             <AudioTicker pipeline={pipeline} />
+            <ReactivityTicker />
             <LevelSwapper onSection={handleSection} />
             <Billboards />
             <SkyboxLayer>

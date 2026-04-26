@@ -1,10 +1,10 @@
-import { useFrame } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { Group, MeshBasicMaterial } from 'three'
 
-import type { SectionInfo } from '../../../../audio/preanalysis/sections'
+import type { SectionInfo } from '../../../../audio'
 
-import { computeFade, configureSkyMaterials, type SkyRole } from './configureSkyMaterials'
+import useSkyReactivity from '../../../../reactivity/useSkyReactivity'
+import { configureSkyMaterials, type SkyRole } from './configureSkyMaterials'
 
 type SkyProps = {
   object: Group
@@ -13,23 +13,13 @@ type SkyProps = {
 }
 
 const Sky = ({ object, offlineSections, role }: SkyProps) => {
-  const materialsRef = useRef<MeshBasicMaterial[]>([])
+  const [materials, setMaterials] = useState<MeshBasicMaterial[]>([])
 
   useEffect(() => {
-    materialsRef.current = configureSkyMaterials(object, role, offlineSections)
+    setMaterials(configureSkyMaterials(object, role, offlineSections))
   }, [object, role, offlineSections])
 
-  useFrame(() => {
-    if (role !== 'next') {
-      return
-    }
-
-    const fade = computeFade(offlineSections)
-
-    for (const material of materialsRef.current) {
-      material.opacity = fade
-    }
-  })
+  useSkyReactivity(materials, role, offlineSections)
 
   return <primitive object={object} />
 }

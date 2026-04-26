@@ -14,6 +14,7 @@ export type AudioState = {
   onset: number
   rms: number
   sectionChangeCount: number
+  sectionEnergy: number
   sectionStart: number
   sectionStrength: number
   sectionTime: number
@@ -41,6 +42,7 @@ export const audioState: AudioState = {
   onset: 0,
   rms: 0,
   sectionChangeCount: 0,
+  sectionEnergy: 0,
   sectionStart: 0,
   sectionStrength: 0,
   sectionTime: 0,
