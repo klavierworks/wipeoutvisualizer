@@ -54,7 +54,7 @@ const AudioProvider = ({ children }: AudioProviderProps) => {
   }, [])
 
   const handlePickAbout = useCallback(() => {
-    // About is intentionally a broken link for now.
+    window.open('https://github.com/klavierworks/wipeoutvisualizer', '_blank')
   }, [])
 
   useEffect(
