@@ -12,8 +12,8 @@ https://wipeout.klavier.works
 
 ## Earlier builds:
 September 2024:
-https://github.com/user-attachments/assets/b7cba613-a8c4-456c-af9f-5e1c944addf9
+<video src="https://github.com/user-attachments/assets/b7cba613-a8c4-456c-af9f-5e1c944addf9"></video>
 
 
 June 2024:
-https://github.com/user-attachments/assets/e2464937-426d-4193-91b6-6bf7524f5243
+<video src="https://github.com/user-attachments/assets/e2464937-426d-4193-91b6-6bf7524f5243"></video>
