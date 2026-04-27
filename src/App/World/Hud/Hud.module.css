@@ -13,7 +13,8 @@
 
 .remaining,
 .check,
-.speed {
+.speed,
+.details {
   position: absolute;
   display: flex;
   font-size: 120px;
@@ -42,10 +43,31 @@
   color: white;
 }
 
-.remaining {
+.remaining,
+.details {
   font-size: 120px;
   left: 2%;
   bottom: 2%;
+}
+
+.details {
+  flex-direction: column;
+  font-size: 24px;
+  padding-bottom: 1em;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+
+  &.isShowingDetails {
+    opacity: 1;
+  }
+}
+
+.live {
+  display: flex;
+  flex-direction: column;
+  font-size: 60px;
+  line-height: 0.9;
+  color: white;
 }
 
 .bpm {

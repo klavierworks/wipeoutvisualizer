@@ -1,16 +1,16 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Group } from 'three'
 
-import type { Built, BuiltExtras } from '../../constructor'
+import type { BuiltExtras } from '../../constructor'
+import type { LoadedLevel } from '../useLevelLoader'
 
-import { LEVEL_ADVANCE_STRENGTH, RACER_COUNT } from '../../constants'
+import { LEVEL_ADVANCE_STRENGTH, RACER_COUNT, SHIP_NAMES, TRACK_NAMES } from '../../constants'
 import AudioProvider from './AudioProvider/AudioProvider'
 import AudioTicker from './AudioTicker/AudioTicker'
 import Billboards from './Billboards/Billboards'
 import ChaseCamera from './ChaseCamera/ChaseCamera'
-import Favicon from './Favicon/Favicon'
 import Hud from './Hud/Hud'
 import LevelSwapper from './LevelSwapper/LevelSwapper'
 import ReactivityTicker from './ReactivityTicker/ReactivityTicker'
@@ -29,9 +29,41 @@ type WorldProps = {
   isDebug: boolean
   isPinned: boolean
   leaderMeshOverride: Group | null
-  levels: Built[]
+  levels: LoadedLevel[]
   shipIndex: null | number
 }
+
+const findExtrasMeshKey = (leader: Group, extrasMeshes: Record<string, Group> | undefined): null | string => {
+  if (!extrasMeshes) {
+    return null
+  }
+
+  for (const [key, mesh] of Object.entries(extrasMeshes)) {
+    if (mesh === leader) {
+      return key
+    }
+  }
+
+  return null
+}
+
+const resolveLeaderName = (leader: Group, shipPool: Group[], extras: BuiltExtras | null): string => {
+  const extrasKey = findExtrasMeshKey(leader, extras?.meshes)
+
+  if (extrasKey !== null) {
+    return extrasKey
+  }
+
+  const index = shipPool.indexOf(leader)
+
+  if (index >= 0 && SHIP_NAMES[index]) {
+    return SHIP_NAMES[index]
+  }
+
+  return index >= 0 ? `Ship ${index}` : 'Ship'
+}
+
+const resolveTrackName = (path: string): string => TRACK_NAMES[path] ?? path
 
 const pickDifferent = (length: number, exclude: number): number => {
   if (length <= 1) {
@@ -61,10 +93,17 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
     return { current, next: pickDifferent(levels.length, current) }
   })
 
-  const current = levels[indexes.current]
-  const next = levels[indexes.next]
+  const current = levels[indexes.current].built
+  const next = levels[indexes.next].built
+  const currentPath = levels[indexes.current].path
 
   const templates = useRacerTemplates(current.ships.meshes, leaderMeshOverride, shipIndex, RACER_COUNT)
+
+  const leaderName = useMemo(
+    () => resolveLeaderName(templates[0], current.ships.meshes, extras),
+    [templates, current.ships.meshes, extras],
+  )
+  const trackName = useMemo(() => resolveTrackName(currentPath), [currentPath])
 
   const handleSection = useCallback(
     (strength: number) => {
@@ -139,7 +178,13 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
               />
             )}
           </Canvas>
-          {pipeline && <Hud extras={extras} offlineSections={pipeline.offlineSections} />}
+          {pipeline && (
+            <Hud
+              leaderName={leaderName}
+              offlineSections={pipeline.offlineSections}
+              trackName={trackName}
+            />
+          )}
         </>
       )}
     </AudioProvider>

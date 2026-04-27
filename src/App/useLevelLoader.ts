@@ -9,11 +9,16 @@ import { loadExtras, loadStartwadAssets, loadTrack } from '../reader-bridge'
 
 export type LevelLoadResult = {
   extras: BuiltExtras | null
-  levels: Built[] | null
+  levels: LoadedLevel[] | null
   startwad: null | StartwadAssets
 }
 
-const loadOneLevel = async (path: string): Promise<Built | null> => {
+export type LoadedLevel = {
+  built: Built
+  path: string
+}
+
+const loadOneLevel = async (path: string): Promise<LoadedLevel | null> => {
   try {
     const start = performance.now()
     const data = await loadTrack(path)
@@ -21,7 +26,7 @@ const loadOneLevel = async (path: string): Promise<Built | null> => {
 
     console.log(`[load] ${path} in ${(performance.now() - start).toFixed(0)}ms`)
 
-    return built
+    return { built, path }
   } catch (error) {
     console.warn(`[load] ${path} failed`, error)
 
@@ -48,7 +53,7 @@ const loadAllExtras = async (startwad: StartwadAssets): Promise<BuiltExtras | nu
 }
 
 export const useLevelLoader = (levelPaths: string[]): LevelLoadResult => {
-  const [levels, setLevels] = useState<Built[] | null>(null)
+  const [levels, setLevels] = useState<LoadedLevel[] | null>(null)
   const [extras, setExtras] = useState<BuiltExtras | null>(null)
   const [startwad, setStartwad] = useState<null | StartwadAssets>(null)
 
@@ -81,7 +86,7 @@ export const useLevelLoader = (levelPaths: string[]): LevelLoadResult => {
         return
       }
 
-      const loadedLevels = levelResults.filter((entry): entry is Built => entry !== null)
+      const loadedLevels = levelResults.filter((entry): entry is LoadedLevel => entry !== null)
 
       if (loadedLevels.length === 0) {
         console.error('[load] no levels loaded')

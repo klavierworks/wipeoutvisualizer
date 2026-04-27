@@ -184,8 +184,8 @@ export const SHIP_BPM_SPEED_MULTIPLIER: Record<number, number> = {
   0: 0,
   60: 0.9,
   100: 1.5,
-  120: 1.8,
-  140: 2,
+  120: 1.6,
+  140: 1.6,
 }
 export const SHIP_BPM_SPEED_LERP = 0.6
 
@@ -247,3 +247,35 @@ export const PLUME_BPM_COLOR: Record<number, [number, number, number]> = {
 // ─── Plume: bass overlay (in-song dynamics on top of BPM map) ────────────
 export const PLUME_BASS_TRAIL_GAIN = 200
 export const PLUME_BASS_FLARE_GAIN = 8
+
+// ─── Track names ─────────────────────────────────────────────────────────
+// Mapping from LEVEL_PATHS entries to in-game circuit names. WipEout 2097 /
+// XL track folder → name mapping cross-referenced from wipeoutzone.com forum
+// research. TRACK04 is the unfinished hidden circuit (no canonical name);
+// BONUS2 is its dropped bonus variant; LIBBAK is an alt-textured TRACK02.
+export const TRACK_NAMES: Record<string, string> = {
+  'WIPEOUT2/TRACK01': "Talon's Reach",
+  'WIPEOUT2/TRACK02': "Gare d'Europa",
+  'WIPEOUT2/TRACK02/LIBBAK': "Gare d'Europa (Alt)",
+  'WIPEOUT2/TRACK04': 'Hidden Circuit',
+  'WIPEOUT2/TRACK04/BONUS2': 'Hidden Circuit (Bonus)',
+  'WIPEOUT2/TRACK06': 'Vostok Island',
+  'WIPEOUT2/TRACK07': 'Spilskinanke',
+  'WIPEOUT2/TRACK08': 'Sagarmatha',
+  'WIPEOUT2/TRACK13': 'Valparaiso',
+  'WIPEOUT2/TRACK17': 'Odessa Keys',
+  'WIPEOUT2/TRACK20': 'Phenitia Park',
+}
+
+// ─── Ship names ──────────────────────────────────────────────────────────
+// Indices into the ship-mesh pool loaded from WIPEOUT2/COMMON/TERRY.PRM.
+// Order assumed from phoboslab/wipeout-rewrite's WipEout 1 team enum
+// (AG_SYSTEMS, AURICOM, QIREX, FEISAR) with PIRANHA appended as the new
+// 2097 team. Adjust if TERRY.PRM dumps disagree with on-screen ships.
+export const SHIP_NAMES: Record<number, string> = {
+  0: 'AG Systems',
+  1: 'Auricom',
+  2: 'Qirex',
+  3: 'Feisar',
+  4: 'Piranha',
+}

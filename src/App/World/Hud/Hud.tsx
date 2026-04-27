@@ -1,16 +1,36 @@
+import { useEffect, useState } from 'react'
 import type { SectionInfo } from '../../../audio/preanalysis/sections'
 
 import styles from './Hud.module.css'
 import { useHudReadouts } from './useHudReadouts'
 
 type HudProps = {
+  leaderName: string
   offlineSections: null | SectionInfo[]
+  trackName: string
 }
 
 const formatStateValue = (value: unknown): string => (typeof value === 'number' ? value.toFixed(2) : String(value))
 
-const Hud = ({ offlineSections }: HudProps) => {
-  const { sectionLabel, sectionRemaining, snapshot, tempo, trackRemaining } = useHudReadouts(offlineSections)
+const Hud = ({ leaderName, offlineSections, trackName }: HudProps) => {
+  const { isLive, sectionLabel, sectionRemaining, snapshot, tempo, trackRemaining } = useHudReadouts(offlineSections)
+
+  const [isShowingDetails, setIsShowingDetails] = useState(false)
+
+  useEffect(() => {
+    if (!isLive) {
+      return;
+    }
+
+    let timeout = setTimeout(() => {
+      setIsShowingDetails(true)
+      timeout = setTimeout(() => {
+        setIsShowingDetails(false)
+      }, 5000);
+    }, 1000)
+
+    return () => clearTimeout(timeout)
+  }, [isLive, trackName, leaderName])
 
   return (
     <div className={styles.hud}>
@@ -23,11 +43,18 @@ const Hud = ({ offlineSections }: HudProps) => {
       </div>
       <div className={styles.check}>
         {sectionLabel}
-        <div className={styles.time}>{sectionRemaining}</div>
+        {!isLive && <div className={styles.time}>{sectionRemaining}</div>}
       </div>
+      {isLive ? (
+      <div className={`${styles.details} ${isShowingDetails ? styles.isShowingDetails : ''}`}>
+        <div>Team: {leaderName}</div>
+        <div>Track: {trackName}</div>
+      </div>
+      ) : (
       <div className={styles.remaining}>
         <div className={styles.time}>{trackRemaining}</div>
       </div>
+      )}
       <div className={styles.speed}>
         {tempo}
         <div className={styles.bpm}>bpm</div>
