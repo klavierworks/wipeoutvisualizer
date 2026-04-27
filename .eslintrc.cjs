@@ -108,7 +108,7 @@ module.exports = {
 		'react/no-unknown-property': [
 			ERROR,
 			{
-				ignore: ['object'],
+				ignore: ['object', 'visible'],
 			},
 		],
 		'react/sort-comp': OFF,

@@ -1,4 +1,4 @@
-import type { BufferAttribute, Group, MeshBasicMaterial } from 'three'
+import type { BufferAttribute, Group } from 'three'
 
 import { useFrame } from '@react-three/fiber'
 import { Mesh } from 'three'
