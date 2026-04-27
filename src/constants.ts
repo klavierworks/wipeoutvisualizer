@@ -1,10 +1,17 @@
-import { Quaternion, Vector3 } from 'three'
+import { Color, Quaternion, Vector3 } from 'three'
 
 // ─── Math / fixed vectors ────────────────────────────────────────────────
 export const TWO_PI = Math.PI * 2
 export const CORRECTION = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI)
 
 // ─── Levels ──────────────────────────────────────────────────────────────
+// Path-suffix variants:
+//   "/BONUS2" reuses the parent dir's SCENE / SKY / LIBRARY but substitutes
+//   BONUS2.TRV/.TRF/.TRS for the track geometry. Currently only TRACK04
+//   ships one.
+//   "/LIBBAK" keeps the parent's track geometry and SCENE / SKY but swaps in
+//   LIBBAK.CMP / LIBBAK.TTF as an alt-themed texture set. Currently only
+//   TRACK02 ships one.
 export const LEVEL_PATHS = [
   'WIPEOUT2/TRACK01',
   'WIPEOUT2/TRACK02',
@@ -15,7 +22,26 @@ export const LEVEL_PATHS = [
   'WIPEOUT2/TRACK13',
   'WIPEOUT2/TRACK17',
   'WIPEOUT2/TRACK20',
+  'WIPEOUT2/TRACK04/BONUS2',
+  'WIPEOUT2/TRACK02/LIBBAK',
 ]
+// Per-track index (in the source TRS section ordering) of the start line.
+// Phoboslab/wipeout-rewrite stores the equivalent as `start_line_pos` in
+// game.c per circuit/race-class; WipEout 2 has no published table, so values
+// here are placeholders to be filled in by reading the on-track section
+// labels rendered by the SectionLabels debug component.
+export const START_LINE_SECTION_BY_TRACK: Record<string, number> = {
+  'WIPEOUT2/TRACK01': 0,
+  'WIPEOUT2/TRACK02': 40,
+  'WIPEOUT2/TRACK04': 0,
+  'WIPEOUT2/TRACK04/BONUS2': 0,
+  'WIPEOUT2/TRACK06': 17,
+  'WIPEOUT2/TRACK07': 79,
+  'WIPEOUT2/TRACK08': 1,
+  'WIPEOUT2/TRACK13': 11,
+  'WIPEOUT2/TRACK17': 7,
+  'WIPEOUT2/TRACK20': 17,
+}
 export const TOTAL_LOAD_STEPS = LEVEL_PATHS.length + 1
 export const LEVEL_ADVANCE_STRENGTH = 0.6
 
@@ -23,6 +49,31 @@ export const LEVEL_ADVANCE_STRENGTH = 0.6
 export const HOT_COLOR: [number, number, number] = [2.5, 1.2, 0.4]
 export const BOOST_FALLOFF = 4
 export const WEAPON_FALLOFF = 3.5
+
+// ─── Start gantry ────────────────────────────────────────────────────────
+// Height above the track surface to anchor the floating-lights gantry. Ship
+// hover is 200 and the gantry mesh is ~850 units tall, so 700 puts the arch
+// well clear of the ships at idle.
+export const START_GANTRY_HEIGHT = 1500
+export const START_GANTRY_DISTANCE = 4000;
+// Countdown light tints — phoboslab/wipeout-rewrite scene.c:148-183.
+export const COUNTDOWN_RED = new Color(0xff0000)
+export const COUNTDOWN_YELLOW = new Color(0xff8000)
+export const COUNTDOWN_GREEN = new Color(0x00ff00)
+// RMS level above which we consider audio to be coming in (vs. silence).
+export const COUNTDOWN_AUDIO_RMS_THRESHOLD = 0.01
+
+// ─── Ship-vs-ship collision ──────────────────────────────────────────────
+// Sphere radius (in world / PRM units) used for broadphase distance check.
+// Ship meshes are ~360 wide, halved by the racer group's 0.5 scale, so 180
+// is a tight fit; bumping to 220 leaves a sliver of buffer for visual spacing.
+export const COLLISION_RADIUS = 220
+// Lateral lane impulse on contact, before the racer-pair scaling.
+export const COLLISION_LANE_IMPULSE = 90
+// Exponential decay rate (per second) for collisionLaneOffset. e^(-dt*5)
+// fades a 90-unit nudge to ~6 over half a second — feels like a sideswipe
+// rather than a permanent sidestep.
+export const COLLISION_OFFSET_DECAY = 5
 export const WEAPON_CYCLE_LENGTH = 6
 export const WEAPON_CYCLE_BRIGHTNESS = 2.5
 export const WEAPON_BASS_LIFT_GAIN = 0.3
@@ -34,6 +85,11 @@ export const SPLINE_DEBUG_RADIUS = 30
 export const SPLINE_DEBUG_RADIAL_SEGMENTS = 8
 export const SPLINE_DEBUG_TUBULAR_SEGMENTS = 1024
 
+// ─── Section labels (debug) ──────────────────────────────────────────────
+export const SECTION_LABEL_HEIGHT = 1500
+export const SECTION_LABEL_FONT_SIZE = 200
+export const SECTION_LABEL_COLOR = '#ffff00'
+
 // ─── Scene: beat-light intensity ─────────────────────────────────────────
 export const BEAT_LIGHT_INTENSITY = 3
 
@@ -43,14 +99,6 @@ export const OIL_PUMP_AMPLITUDE = 1
 
 // ─── Scene: fan spin ─────────────────────────────────────────────────────
 export const FAN_SPEED_RAD_PER_SEC = 4
-
-// ─── Scene: start-boom countdown loop ────────────────────────────────────
-export const START_BOOM_STAGE_SECONDS = 1
-export const START_BOOM_STAGE_COUNT = 4
-export const START_BOOM_GREY: [number, number, number] = [0x20 / 0xff, 0x20 / 0xff, 0x20 / 0xff]
-export const START_BOOM_RED: [number, number, number] = [1, 0, 0]
-export const START_BOOM_ORANGE: [number, number, number] = [1, 0x80 / 0xff, 0]
-export const START_BOOM_GREEN: [number, number, number] = [0, 1, 0]
 
 // ─── Sky ─────────────────────────────────────────────────────────────────
 export const SKY_FADE_SECONDS = 5
@@ -62,12 +110,26 @@ export const CAMERA_TANGENT_LAG = 0.006
 
 // ─── Ships: grid / racing ────────────────────────────────────────────────
 export const RACER_COUNT = 8
-export const GRID_COLS = 2
-export const GRID_ROW_GAP = 0.005
-export const GRID_COL_WIDTH = 500
+// Single-file zig-zag grid: one ship per row, alternating left/right each row
+// (row 0 = pole on the right, row 1 left, row 2 right, ...). LANE_WIDTH is
+// the full lateral distance between the two lanes (world units).
+// ROW_GAP_SECTIONS is the longitudinal spacing between rows in source-track
+// section units, converted to spline-t per track at config time.
+export const START_GRID_LANE_WIDTH = 2000
+export const START_GRID_ROW_GAP_SECTIONS = 2
 export const BASE_SPEED = 0.02
 export const SHIP_HOVER_HEIGHT = 200
 export const PRIMARY_ROUTE_PROBABILITY = 0.66
+// Constant added to the leader's mean speed factor (~+2% by default) so the
+// player drifts back into the pack after being passed instead of falling
+// behind permanently. Other ships keep mean = 1.
+export const LEADER_SPEED_BIAS = 0.02
+// Speed ramp is the per-ship `launchProgress` factor on speedFactor; the lane
+// fade is the cross-blend in splineLane that pulls ships off the wide start
+// grid back toward the race line. Split so a snappy launch can pair with a
+// slow, dramatic lateral settle.
+export const LAUNCH_RAMP_LERP = 0.2
+export const START_LANE_FADE_LERP = 0.1
 
 // ─── Ships: audio reactivity ─────────────────────────────────────────────
 export const BASS_GAIN = 0.35
@@ -118,6 +180,7 @@ export const SHIP_BPM_SPEED_MULTIPLIER: Record<number, number> = {
   120: 0.9,
   140: 1,
 }
+export const SHIP_BPM_SPEED_LERP = 0.6
 
 // ─── Reactivity: chase camera ────────────────────────────────────────────
 export const CAMERA_FOV_BASE = 60

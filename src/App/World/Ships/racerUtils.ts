@@ -15,9 +15,11 @@ import {
   BOOST_RAMP_DOWN_LERP,
   BOOST_RAMP_UP_LERP,
   BOOST_TILE_GAIN,
+  COLLISION_OFFSET_DECAY,
   CORRECTION,
   KICK_GAIN,
   LAUNCH_ANGLE,
+  LAUNCH_RAMP_LERP,
   LOOK_AHEAD,
   MAX_ORIENT_PITCH,
   MAX_PITCH,
@@ -27,10 +29,12 @@ import {
   ROLL_LERP,
   SEVERE_WALL_VELOCITY,
   SHIP_HOVER_HEIGHT,
+  START_LANE_FADE_LERP,
   TWO_PI,
   WALL_STRESS_DECAY,
 } from '../../../constants'
 import { calculateBpmSpeedMultiplier } from '../../../reactivity/derive/calculateBpmSpeedMultiplier'
+import { isRacing } from '../../../reactivity/derive/calculateCountdownState'
 import { calculateShipSpeedMultiplier } from '../../../reactivity/derive/calculateShipSpeedMultiplier'
 import { pickSplineIndex } from './racerConfig'
 import { clamp, sampleTrackUp, splineLane } from './splineSampling'
@@ -38,14 +42,20 @@ import { clamp, sampleTrackUp, splineLane } from './splineSampling'
 export type RacerMotion = {
   boostFactor: number
   boostTimer: number
+  // Lateral lane impulse from a recent ship-vs-ship collision. Added to the
+  // racer's desired lane each frame and decayed back toward zero so contacts
+  // read as a brief sideswipe rather than a permanent shift.
+  collisionLaneOffset: number
   isAirborne: boolean
   isSeeded: boolean
+  launchProgress: number
   pitch: number
   position: Vector3
+  previousCurvePoint: Vector3
   previousDesiredLane: number
-  previousSplineCenter: Vector3
   roll: number
   splineIndex: number
+  startLaneFade: number
   t: number
   velocity: Vector3
   wallStress: number
@@ -54,14 +64,17 @@ export type RacerMotion = {
 export const makeRacerMotion = (config: RacerConfig): RacerMotion => ({
   boostFactor: 0,
   boostTimer: 0,
+  collisionLaneOffset: 0,
   isAirborne: false,
   isSeeded: false,
+  launchProgress: 0,
   pitch: 0,
   position: new Vector3(),
+  previousCurvePoint: new Vector3(),
   previousDesiredLane: 0,
-  previousSplineCenter: new Vector3(),
   roll: 0,
   splineIndex: config.splineIndex,
+  startLaneFade: 0,
   t: config.startT,
   velocity: new Vector3(),
   wallStress: 0,
@@ -75,6 +88,11 @@ export type LeaderOutputs = {
 
 export type PathSample = {
   basisX: Vector3
+  // Raw curve point at motion.t — no hover or lane offset. Used as the
+  // reference for splineVelocity so that trackUp rotation across banked /
+  // ramp transitions doesn't leak into the y-velocity the airborne and
+  // pitch logic read.
+  curvePoint: Vector3
   desiredLane: number
   innerMax: number
   innerMin: number
@@ -109,6 +127,7 @@ const _pitchQuaternion = new Quaternion()
 
 const _sample: PathSample = {
   basisX: _basisX,
+  curvePoint: _position,
   desiredLane: 0,
   innerMax: 0,
   innerMin: 0,
@@ -130,7 +149,7 @@ export const updateBoostState = (
   config: RacerConfig,
   dt: number,
 ): void => {
-  const { clamped } = splineLane(spline, motion.t, config)
+  const { clamped } = splineLane(spline, motion.t, config, motion.startLaneFade)
 
   if (isOnBoostTile(spline, motion.t, clamped)) {
     motion.boostTimer = BOOST_DURATION
@@ -147,12 +166,34 @@ export const updateBoostState = (
 }
 
 export const advanceAlongSpline = (motion: RacerMotion, config: RacerConfig, splineCount: number, dt: number): void => {
-  const intrinsic = 1 + Math.sin(motion.t * config.speedFrequency * TWO_PI + config.speedPhase) * config.speedAmplitude
+  // Decay any pending collision-impulse lane offset toward zero (regardless of
+  // racing state — we still want pre-race nudges to settle).
+  motion.collisionLaneOffset *= Math.exp(-dt * COLLISION_OFFSET_DECAY)
+  // Hold every racer on its grid spot until the gantry goes GREEN.
+  if (!isRacing()) {
+    return
+  }
+
+  const launchAlpha = 1 - Math.exp(-dt * LAUNCH_RAMP_LERP)
+  const laneFadeAlpha = 1 - Math.exp(-dt * START_LANE_FADE_LERP)
+
+  motion.launchProgress += (1 - motion.launchProgress) * launchAlpha
+  motion.startLaneFade += (1 - motion.startLaneFade) * laneFadeAlpha
+
+  const speedSine = Math.sin(motion.t * config.speedFrequency * TWO_PI + config.speedPhase)
+  const intrinsic = 1 + config.speedBias + speedSine * config.speedAmplitude
   const barSurge = 1 + Math.sin((audioState.barPhase + config.barOffset) * TWO_PI) * BAR_GAIN
   const tileBoost = 1 + motion.boostFactor * (BOOST_TILE_GAIN - 1)
   const sectionEnergyMultiplier = calculateShipSpeedMultiplier()
   const bpmMultiplier = calculateBpmSpeedMultiplier()
-  const speedFactor = intrinsic * audioBassBoost() * barSurge * tileBoost * sectionEnergyMultiplier * bpmMultiplier
+  const speedFactor =
+    intrinsic *
+    audioBassBoost() *
+    barSurge *
+    tileBoost *
+    sectionEnergyMultiplier *
+    bpmMultiplier *
+    motion.launchProgress
   const stressFactor = Math.max(0, 1 - motion.wallStress)
   const previousT = motion.t
 
@@ -169,11 +210,10 @@ export const samplePath = (spline: TrackSpline, motion: RacerMotion, config: Rac
   sampleTrackUp(spline, motion.t, _trackUp)
   _basisX.crossVectors(_trackUp, _tangent).normalize()
 
-  const lane = splineLane(spline, motion.t, config)
-  const centerY = _position.y + SHIP_HOVER_HEIGHT
+  const lane = splineLane(spline, motion.t, config, motion.startLaneFade, motion.collisionLaneOffset)
 
-  _splineCenter.set(_position.x, centerY, _position.z)
-  _splinePosition.set(_position.x + _basisX.x * lane.clamped, centerY, _position.z + _basisX.z * lane.clamped)
+  _splineCenter.copy(_position).addScaledVector(_trackUp, SHIP_HOVER_HEIGHT)
+  _splinePosition.copy(_splineCenter).addScaledVector(_basisX, lane.clamped)
 
   _sample.desiredLane = lane.desired
   _sample.innerMax = lane.innerMax
@@ -205,7 +245,7 @@ export const writeOutputs = (
 export const seedMotion = (motion: RacerMotion, sample: PathSample): void => {
   motion.position.copy(sample.splinePosition)
   motion.velocity.set(0, 0, 0)
-  motion.previousSplineCenter.copy(sample.splineCenter)
+  motion.previousCurvePoint.copy(sample.curvePoint)
   motion.previousDesiredLane = sample.desiredLane
   motion.pitch = 0
   motion.isAirborne = false
@@ -233,8 +273,8 @@ export const updateWallStress = (motion: RacerMotion, sample: PathSample, dt: nu
 export const updateSplineVelocity = (motion: RacerMotion, sample: PathSample, dt: number): void => {
   const safeDt = Math.max(dt, 1e-4)
 
-  sample.splineVelocity.subVectors(sample.splineCenter, motion.previousSplineCenter).divideScalar(safeDt)
-  motion.previousSplineCenter.copy(sample.splineCenter)
+  sample.splineVelocity.subVectors(sample.curvePoint, motion.previousCurvePoint).divideScalar(safeDt)
+  motion.previousCurvePoint.copy(sample.curvePoint)
 }
 
 export const updateFlight = (motion: RacerMotion, sample: PathSample, dt: number): void => {

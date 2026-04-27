@@ -118,3 +118,10 @@
   height: 48px;
   width: auto;
 }
+
+.meshList {
+  font-size: 14px;
+  opacity: 0.7;
+  max-width: 720px;
+  line-height: 1.4;
+}

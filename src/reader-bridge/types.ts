@@ -7,12 +7,14 @@ export type DecodedImage = {
 export type ExtrasData = {
   geometry: Record<string, ObjectBundle>
   textures: Record<string, DecodedImage[]>
+  ui: UiAssets
 }
 
 export type ObjectBundle = {
   images: DecodedImage[]
   objects: WipeoutObject[]
 }
+
 
 export type ObjectHeader = {
   index1: number
@@ -128,6 +130,20 @@ export type TrackTextureIndex = {
 }
 
 export type TrackVertex = { x: number; y: number; z: number }
+
+export type UiAssets = {
+  // Decoded CMP atlases from STARTWAD.WAD (cdroid, wepicon, mine,
+  // explode, sroid, light, ashbutt). Keys are lowercase basenames.
+  atlases: Record<string, DecodedImage[]>
+  // Decoded TIMs from STARTWAD.WAD (8 entries: spbile2, thrust, energy,
+  // revs, link, pilot, wofont, chrome) plus the standalone WOFONT.TIM.
+  // Keys are lowercase basenames without the .tim extension.
+  images: Record<string, DecodedImage>
+  // COMMON/MENU.DAT — menu text/layout. Format isn't documented and we
+  // don't decode it yet, so callers receive raw bytes for inspection / a
+  // future decoder.
+  menu: null | Uint8Array
+}
 
 export type Uv = { u: number; v: number }
 

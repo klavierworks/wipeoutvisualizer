@@ -8,7 +8,11 @@ import { computeLaneBounds } from './laneBounds'
 import { sectionCenter, sectionNormal } from './normals'
 import { fillMissing, smoothLoop } from './smoothing'
 
-const SMOOTH_PASSES = 2
+// One pass of (prev + here + next) / 3 averaging on x and z. y is anchored
+// to the canonical section center for every section (since fillMissing
+// always finds one), so smoothing only damps lateral noise on straights —
+// it can't pull the curve away from the surface on ramps/banked corners.
+const SMOOTH_PASSES = 1
 
 const packTrackUp = (normals: Vector3[]): Float32Array => {
   const out = new Float32Array(normals.length * 3)
@@ -46,10 +50,45 @@ const collectSectionData = (order: number[], track: TrackData) => {
   return { boostFacesByOrder, rawCenters, rawNormals }
 }
 
+const Y_OUTLIER_THRESHOLD = 10000
+
+export const logSectionYOutliers = (track: TrackData, order: number[]): void => {
+  const ys = order.map((index) => -track.sections[index].y)
+  const count = ys.length
+
+  ys.forEach((here, i) => {
+    const before = ys[(i - 1 + count) % count]
+    const after = ys[(i + 1) % count]
+    const expected = (before + after) / 2
+    const delta = here - expected
+
+    if (Math.abs(delta) <= Y_OUTLIER_THRESHOLD) {
+      return
+    }
+
+    const sign = delta > 0 ? '+' : ''
+
+    console.warn(
+      `[spline] section ${order[i]} (order ${i}/${count}): y=${here.toFixed(0)}, neighbors avg ${expected.toFixed(0)} (${sign}${delta.toFixed(0)})`,
+    )
+  })
+}
+
+const computeStartLineT = (order: number[], startLineSection: number): number => {
+  const position = order.indexOf(startLineSection)
+
+  if (position < 0) {
+    return 0
+  }
+
+  return position / order.length
+}
+
 export const buildSplineFromOrder = (
   order: number[],
   track: TrackData,
   boostPulseByOriginal: Int32Array,
+  startLineSection: number,
 ): TrackSpline => {
   const { boostFacesByOrder, rawCenters, rawNormals } = collectSectionData(order, track)
   const boostPulseAtSection = new Int32Array(order.map((originalIndex) => boostPulseByOriginal[originalIndex]))
@@ -64,7 +103,16 @@ export const buildSplineFromOrder = (
   const boostRanges = computeBoostFaceRanges(curve, boostFacesByOrder, track.vertices)
   const boostPulseAt = makeBoostPulseAt(boostRanges, boostPulseAtSection)
 
-  return { boostPulseAt, curve, laneMax, laneMin, numSections: boostFacesByOrder.length, trackUp }
+  return {
+    boostPulseAt,
+    curve,
+    laneMax,
+    laneMin,
+    numSections: boostFacesByOrder.length,
+    order,
+    startLineT: computeStartLineT(order, startLineSection),
+    trackUp,
+  }
 }
 
 export { buildBoostPulseByOriginal }

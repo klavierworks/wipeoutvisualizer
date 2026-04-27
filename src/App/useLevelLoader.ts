@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { START_LINE_SECTION_BY_TRACK } from '../constants'
 import { type Built, type BuiltExtras, construct, constructExtras } from '../constructor'
 import { loadExtras, loadTrack } from '../reader-bridge'
 
@@ -15,7 +16,7 @@ const loadOneLevel = async (path: string): Promise<Built | null> => {
   try {
     const start = performance.now()
     const data = await loadTrack(path)
-    const built = construct(data)
+    const built = construct(data, START_LINE_SECTION_BY_TRACK[path] ?? 0)
 
     console.log(`[load] ${path} in ${(performance.now() - start).toFixed(0)}ms`)
 

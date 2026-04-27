@@ -4,7 +4,7 @@ import { Group } from 'three'
 
 import type { TrackSpline } from '../../../../constructor/trackSpline'
 import type { RacerConfig } from '../racerConfig'
-import type { LeaderOutputs, RacerOutputs } from '../racerUtils'
+import type { LeaderOutputs, RacerMotion, RacerOutputs } from '../racerUtils'
 
 import { pickSplineIndex } from '../racerConfig'
 import {
@@ -12,7 +12,6 @@ import {
   buildBasisMatrix,
   clampToTrack,
   computeOrientationTangent,
-  makeRacerMotion,
   samplePath,
   seedMotion,
   updateBoostState,
@@ -30,13 +29,14 @@ type RacerProps = {
   config: RacerConfig
   index: number
   leaderOutputs?: LeaderOutputs
+  motion: RacerMotion
   racerOutputs?: RacerOutputs
   splines: TrackSpline[]
   template: Group
 }
 
-const Racer = ({ config, index, leaderOutputs, racerOutputs, splines, template }: RacerProps) => {
-  const motionRef = useRef(makeRacerMotion(config))
+const Racer = ({ config, index, leaderOutputs, motion, racerOutputs, splines, template }: RacerProps) => {
+  const motionRef = useRef(motion)
   const isBoostingRef = useRef(false)
   const groupRef = useRef<Group | null>(null)
 

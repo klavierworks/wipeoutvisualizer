@@ -1,42 +1,52 @@
 import { MutableRefObject, useMemo, useRef } from 'react'
 import { Group } from 'three'
 
-import type { Built } from '../../../constructor'
+import type { TrackSpline } from '../../../constructor/trackSpline'
 
 import { RACER_COUNT } from '../../../constants'
 import Racer from './Racer/Racer'
 import { makeRacerConfig, type RacerConfig } from './racerConfig'
-import { type LeaderOutputs, type RacerOutputs } from './racerUtils'
-import { useRacerTemplates } from './useRacerTemplates'
+import { type LeaderOutputs, makeRacerMotion, type RacerMotion, type RacerOutputs } from './racerUtils'
+import ShipCollisions from './ShipCollisions/ShipCollisions'
 
 type ShipsProps = {
-  leaderMeshOverride?: Group | null
   leaderRef?: MutableRefObject<Group | null>
   leaderSplineIndexRef?: MutableRefObject<number>
   leaderTRef?: MutableRefObject<number>
   racerLanesRef?: MutableRefObject<Float32Array>
   racerSplineIndexesRef?: MutableRefObject<Int32Array>
   racerTsRef?: MutableRefObject<Float32Array>
-  shipIndex?: null | number
-  ships: Built['ships']
+  splines: TrackSpline[]
+  templates: Group[]
 }
 
 const Ships = ({
-  leaderMeshOverride,
   leaderRef,
   leaderSplineIndexRef,
   leaderTRef,
   racerLanesRef,
   racerSplineIndexesRef,
   racerTsRef,
-  shipIndex,
-  ships,
+  splines,
+  templates,
 }: ShipsProps) => {
   const configsRef = useRef<RacerConfig[]>(
-    Array.from({ length: RACER_COUNT }, (_, i) => makeRacerConfig(i, RACER_COUNT, ships.splines.length))
+    Array.from({ length: RACER_COUNT }, (_, i) =>
+      makeRacerConfig(
+        i,
+        RACER_COUNT,
+        splines.length,
+        splines[0].startLineT,
+        splines[0].numSections,
+      ),
+    ),
   );
 
-  const templates = useRacerTemplates(ships.meshes, leaderMeshOverride, shipIndex, RACER_COUNT)
+  // Motions live here (not inside Racer) so ShipCollisions can do pairwise
+  // lateral nudges across the whole field each frame.
+  const motionsRef = useRef<RacerMotion[]>(
+    configsRef.current.map((config) => makeRacerMotion(config))
+  );
 
   const leaderOutputs = useMemo<LeaderOutputs | undefined>(() => {
     if (!leaderRef || !leaderTRef || !leaderSplineIndexRef) {
@@ -62,11 +72,13 @@ const Ships = ({
           index={i}
           key={i}
           leaderOutputs={i === 0 ? leaderOutputs : undefined}
+          motion={motionsRef.current[i]}
           racerOutputs={racerOutputs}
-          splines={ships.splines}
+          splines={splines}
           template={templates[i]}
         />
       ))}
+      <ShipCollisions motions={motionsRef.current} />
     </>
   )
 }

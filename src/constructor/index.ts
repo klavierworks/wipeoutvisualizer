@@ -1,6 +1,6 @@
 import { Group } from 'three'
 
-import type { DecodedImage, ExtrasData, ReaderResult } from '../reader-bridge'
+import type { DecodedImage, ExtrasData, ReaderResult, UiAssets } from '../reader-bridge'
 
 import { constructObjectBundle } from './object'
 import { constructScene, type SceneBundle } from './scene'
@@ -21,13 +21,14 @@ export type Built = {
 export type BuiltExtras = {
   atlases: Record<string, DecodedImage[]>
   meshes: Record<string, Group>
+  ui: UiAssets
 }
 
-export const construct = (data: ReaderResult): Built => ({
+export const construct = (data: ReaderResult, startLineSection: number): Built => ({
   scene: constructScene(data.scene),
   ships: {
     meshes: prepareShips(data.ships),
-    splines: buildTrackSplines(data.track),
+    splines: buildTrackSplines(data.track, startLineSection),
   },
   sky: constructObjectBundle(data.sky),
   track: constructTrack(data.track),
@@ -38,4 +39,5 @@ export const constructExtras = (data: ExtrasData): BuiltExtras => ({
   meshes: Object.fromEntries(
     Object.entries(data.geometry).map(([name, bundle]) => [name, constructObjectBundle(bundle)]),
   ),
+  ui: data.ui,
 })

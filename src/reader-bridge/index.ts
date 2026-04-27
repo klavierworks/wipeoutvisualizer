@@ -1,10 +1,19 @@
-import type { DecodedImage, ExtrasData, ObjectBundle, ReaderResult, TrackData, WipeoutObject } from './types'
+import type {
+  DecodedImage,
+  ExtrasData,
+  ObjectBundle,
+  ReaderResult,
+  TrackData,
+  UiAssets,
+  WipeoutObject,
+} from './types'
 
 import { COMMON_DIR, EXTRA_GEOMETRY, EXTRA_TEXTURES } from './constants'
 import { fetchAll, fetchBytes } from './fetch'
+import { unpackStartwad } from './startwad'
 import { getReader } from './wasm'
 
-export type { DecodedImage, ExtrasData, ObjectBundle, ReaderResult, TrackData } from './types'
+export type { DecodedImage, ExtrasData, ObjectBundle, ReaderResult, TrackData, UiAssets } from './types'
 export type {
   ObjectHeader,
   Polygon,
@@ -41,18 +50,58 @@ const fetchOptional = async (path: string): Promise<null | Uint8Array> => {
   }
 }
 
+// Path-suffix sentinels for 2097 track variants:
+//
+//   "WIPEOUT2/TRACK04/BONUS2"  → reuse parent SCENE/SKY/LIBRARY but use
+//                                BONUS2.TRV/.TRF/.TRS for track geometry.
+//   "WIPEOUT2/TRACK02/LIBBAK"  → reuse parent's track geometry and SCENE/SKY
+//                                but swap LIBRARY.CMP/.TTF for LIBBAK.CMP/.TTF
+//                                (alt-themed textures).
+//
+// Only TRACK04 ships a BONUS2 set and only TRACK02 ships a LIBBAK set in our
+// gamefiles.
+type TrackVariant = {
+  dir: string
+  libraryPrefix: 'LIBBAK' | 'LIBRARY'
+  trackPrefix: 'BONUS2' | 'TRACK'
+}
+
+const BONUS2_SUFFIX = '/BONUS2'
+const LIBBAK_SUFFIX = '/LIBBAK'
+
+const splitVariantPath = (trackDir: string): TrackVariant => {
+  if (trackDir.endsWith(BONUS2_SUFFIX)) {
+    return {
+      dir: trackDir.slice(0, -BONUS2_SUFFIX.length),
+      libraryPrefix: 'LIBRARY',
+      trackPrefix: 'BONUS2',
+    }
+  }
+  if (trackDir.endsWith(LIBBAK_SUFFIX)) {
+    return {
+      dir: trackDir.slice(0, -LIBBAK_SUFFIX.length),
+      libraryPrefix: 'LIBBAK',
+      trackPrefix: 'TRACK',
+    }
+  }
+  return { dir: trackDir, libraryPrefix: 'LIBRARY', trackPrefix: 'TRACK' }
+}
+
 const loadTrackData = async (trackDir: string): Promise<TrackData> => {
   const reader = await getReader()
+  const { dir, libraryPrefix, trackPrefix } = splitVariantPath(trackDir)
 
   const [files, textureBytes] = await Promise.all([
     fetchAll({
-      cmp: `${trackDir}/LIBRARY.CMP`,
-      trf: `${trackDir}/TRACK.TRF`,
-      trs: `${trackDir}/TRACK.TRS`,
-      trv: `${trackDir}/TRACK.TRV`,
-      ttf: `${trackDir}/LIBRARY.TTF`,
+      cmp: `${dir}/${libraryPrefix}.CMP`,
+      trf: `${dir}/${trackPrefix}.TRF`,
+      trs: `${dir}/${trackPrefix}.TRS`,
+      trv: `${dir}/${trackPrefix}.TRV`,
+      ttf: `${dir}/${libraryPrefix}.TTF`,
     }),
-    fetchOptional(`${trackDir}/TRACK.TEX`),
+    // Variant tracks (BONUS2, LIBBAK) usually have no .TEX overrides; fall
+    // through to no per-face overrides if absent.
+    fetchOptional(`${dir}/${trackPrefix}.TEX`),
   ])
 
   return {
@@ -66,9 +115,13 @@ const loadTrackData = async (trackDir: string): Promise<TrackData> => {
 }
 
 export const loadTrack = async (trackDir: string): Promise<ReaderResult> => {
+  // Track variants (BONUS2, LIBBAK) reuse the parent directory's SCENE/SKY;
+  // only the track geometry / texture library differ (handled inside
+  // loadTrackData).
+  const { dir } = splitVariantPath(trackDir)
   const [scene, sky, ships, track] = await Promise.all([
-    loadObjectBundle(`${trackDir}/SCENE.CMP`, `${trackDir}/SCENE.PRM`),
-    loadObjectBundle(`${trackDir}/SKY.CMP`, `${trackDir}/SKY.PRM`),
+    loadObjectBundle(`${dir}/SCENE.CMP`, `${dir}/SCENE.PRM`),
+    loadObjectBundle(`${dir}/SKY.CMP`, `${dir}/SKY.PRM`),
     loadObjectBundle('WIPEOUT2/COMMON/TERRY.CMP', 'WIPEOUT2/COMMON/TERRY.PRM'),
     loadTrackData(trackDir),
   ])
@@ -146,16 +199,69 @@ const assembleTextures = (cmpCache: CmpCache): Record<string, DecodedImage[]> =>
   return textures
 }
 
+// UI asset paths. WOFONT is a standalone TIM (also embedded in STARTWAD.WAD;
+// loaded separately as a fallback). MENU.DAT is undocumented and surfaced as
+// raw bytes. STARTWAD.WAD is unpacked into its contained TIMs and CMPs via
+// our reverse-engineered walker.
+const UI_FONT_PATH = 'WIPEOUT2/TEXTURES/WOFONT.TIM'
+const UI_MENU_PATH = 'WIPEOUT2/COMMON/MENU.DAT'
+const UI_STARTWAD_PATH = 'WIPEOUT2/COMMON/STARTWAD.WAD'
+
+const loadUi = async (): Promise<UiAssets> => {
+  const reader = await getReader()
+  const [fontBytes, menu, startwadBytes] = await Promise.all([
+    fetchOptional(UI_FONT_PATH),
+    fetchOptional(UI_MENU_PATH),
+    fetchOptional(UI_STARTWAD_PATH),
+  ])
+
+  const images: Record<string, DecodedImage> = {}
+  const atlases: Record<string, DecodedImage[]> = {}
+
+  if (startwadBytes) {
+    for (const entry of unpackStartwad(startwadBytes)) {
+      try {
+        if (entry.extension === 'tim') {
+          images[entry.stem] = reader.decode_image(entry.bytes) as DecodedImage
+        } else if (entry.extension === 'cmp') {
+          atlases[entry.stem] = await decodeImages(entry.bytes)
+        }
+        // PRMs in STARTWAD (rock, mine, miss, shld, ebolt, sroid, light)
+        // overlap with the COMMON/*.PRM files we already load via extras —
+        // skip here to avoid duplicate decoding.
+      } catch (e) {
+        console.warn(`[ui] STARTWAD ${entry.name} decode failed:`, e)
+      }
+    }
+  }
+
+  // Standalone WOFONT.TIM — always preferred over the STARTWAD copy if present.
+  if (fontBytes) {
+    try {
+      images.wofont = reader.decode_image(fontBytes) as DecodedImage
+    } catch (e) {
+      console.warn(`[ui] ${UI_FONT_PATH} decode failed:`, e)
+    }
+  }
+
+  return { atlases, images, menu }
+}
+
 export const loadExtras = async (): Promise<ExtrasData> => {
   const { cmpPaths, prmPaths } = collectExtraPaths()
 
-  const [cmpEntries, prmEntries] = await Promise.all([
+  const [cmpEntries, prmEntries, ui] = await Promise.all([
     Promise.all(cmpPaths.map(loadCmp)),
     Promise.all(prmPaths.map(loadPrm)),
+    loadUi(),
   ])
 
   const cmpCache: CmpCache = Object.fromEntries(cmpEntries)
   const prmCache: PrmCache = Object.fromEntries(prmEntries)
 
-  return { geometry: assembleGeometry(cmpCache, prmCache), textures: assembleTextures(cmpCache) }
+  return {
+    geometry: assembleGeometry(cmpCache, prmCache),
+    textures: assembleTextures(cmpCache),
+    ui,
+  }
 }

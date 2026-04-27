@@ -36,7 +36,6 @@ export const SCENE_NAME_RED_LIGHT_PREFIXES = ['redl', 'redb'] as const
 export const SCENE_NAME_WHITE_LIGHT_PREFIXES = ['lightbox', 'nulights', 'gigII'] as const
 export const SCENE_NAME_OPACITY_PULSE_PREFIXES = ['alphabill', 'beamer', 'smoke'] as const
 export const SCENE_NAME_OIL_PUMP_PREFIXES = ['donkey'] as const
-export const SCENE_NAME_START_BOOM_PREFIXES = ['start'] as const
 export const SCENE_NAME_STAND_PREFIXES = ['lost', 'stad', 'newstad'] as const
 export const SCENE_NAME_FAN_PREFIXES = ['fan'] as const
 export const SCENE_NAME_UV_SCROLL_PREFIXES: Record<string, [number, number]> = {

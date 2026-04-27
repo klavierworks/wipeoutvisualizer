@@ -4,7 +4,6 @@ import BeatLights from './BeatLights/BeatLights'
 import CrowdStands from './CrowdStands/CrowdStands'
 import Fans from './Fans/Fans'
 import OilPumps from './OilPumps/OilPumps'
-import StartBooms from './StartBooms/StartBooms'
 import UvScrollers from './UvScrollers/UvScrollers'
 
 type SceneProps = {
@@ -18,7 +17,6 @@ const Scene = ({ bundle }: SceneProps) => (
     <CrowdStands stands={bundle.crowdStands} />
     <Fans fans={bundle.fans} />
     <OilPumps pumps={bundle.oilPumps} />
-    <StartBooms booms={bundle.startBooms} />
     <UvScrollers scrollers={bundle.uvScrollers} />
   </>
 )

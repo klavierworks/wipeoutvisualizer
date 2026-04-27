@@ -1,4 +1,10 @@
-import { GRID_COL_WIDTH, GRID_COLS, GRID_ROW_GAP, PRIMARY_ROUTE_PROBABILITY, TWO_PI } from '../../../constants'
+import {
+  LEADER_SPEED_BIAS,
+  PRIMARY_ROUTE_PROBABILITY,
+  START_GRID_LANE_WIDTH,
+  START_GRID_ROW_GAP_SECTIONS,
+  TWO_PI,
+} from '../../../constants'
 
 export type RacerConfig = {
   barOffset: number
@@ -6,6 +12,7 @@ export type RacerConfig = {
   laneFrequency: number
   lanePhase: number
   speedAmplitude: number
+  speedBias: number
   speedFrequency: number
   speedPhase: number
   splineIndex: number
@@ -25,20 +32,27 @@ export const pickSplineIndex = (count: number): number => {
   return 1 + Math.floor(Math.random() * (count - 1))
 }
 
-export const makeRacerConfig = (index: number, total: number, splineCount: number): RacerConfig => {
-  const row = Math.floor(index / GRID_COLS)
-  const col = index % GRID_COLS
+export const makeRacerConfig = (
+  index: number,
+  total: number,
+  splineCount: number,
+  startLineT: number,
+  numSections: number,
+): RacerConfig => {
+  const lateralSign = index % 2 === 0 ? 1 : -1
+  const rowGapT = START_GRID_ROW_GAP_SECTIONS / numSections
 
   return {
     barOffset: index / total,
     laneAmplitude: 400 + Math.random() * 600,
     laneFrequency: 1 + Math.random() * 2,
     lanePhase: Math.random() * TWO_PI,
-    speedAmplitude: 0.1 + Math.random() * 0.2,
+    speedAmplitude: 0.05 + Math.random() * 0.1,
+    speedBias: index === 0 ? LEADER_SPEED_BIAS : 0,
     speedFrequency: 1 + Math.random() * 3,
     speedPhase: Math.random() * TWO_PI,
     splineIndex: pickSplineIndex(splineCount),
-    startLane: (col - (GRID_COLS - 1) / 2) * GRID_COL_WIDTH,
-    startT: (1 - row * GRID_ROW_GAP + 1) % 1,
+    startLane: (lateralSign * START_GRID_LANE_WIDTH) / 2,
+    startT: (startLineT - index * rowGapT + 1) % 1,
   }
 }

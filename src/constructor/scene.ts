@@ -10,7 +10,6 @@ import {
   SCENE_NAME_OPACITY_PULSE_PREFIXES,
   SCENE_NAME_RED_LIGHT_PREFIXES,
   SCENE_NAME_STAND_PREFIXES,
-  SCENE_NAME_START_BOOM_PREFIXES,
   SCENE_NAME_UV_SCROLL_PREFIXES,
   SCENE_NAME_WHITE_LIGHT_PREFIXES,
 } from './constants'
@@ -22,18 +21,12 @@ export type BeatLight =
   | { group: Group; kind: 'red' }
   | { group: Group; kind: 'white' }
 
-export type PolyTaggedSceneObject = {
-  group: Group
-  polygonVertexIndices: Map<number, Uint32Array>
-}
-
 export type SceneBundle = {
   base: Group
   beatLights: BeatLight[]
   crowdStands: Group[]
   fans: Group[]
   oilPumps: Group[]
-  startBooms: PolyTaggedSceneObject[]
   uvScrollers: UvScroller[]
 }
 
@@ -41,26 +34,6 @@ export type UvScroller = {
   group: Group
   speed: [number, number]
   textures: DataTexture[]
-}
-
-const polyTag = (polygonIndex: number): string => `poly:${polygonIndex}`
-
-const collectPolygonRanges = (taggedIndices: Map<string, Uint32Array>): Map<number, Uint32Array> => {
-  const result = new Map<number, Uint32Array>()
-
-  for (const [tag, indices] of taggedIndices) {
-    if (!tag.startsWith('poly:')) {
-      continue
-    }
-
-    const polygonIndex = Number(tag.slice('poly:'.length))
-
-    if (Number.isFinite(polygonIndex)) {
-      result.set(polygonIndex, indices)
-    }
-  }
-
-  return result
 }
 
 const matchesAnyPrefix = (name: string, prefixes: readonly string[]): boolean =>
@@ -138,7 +111,6 @@ export const constructScene = (bundle: ObjectBundle): SceneBundle => {
   const crowdStands: Group[] = []
   const fans: Group[] = []
   const oilPumps: Group[] = []
-  const startBooms: PolyTaggedSceneObject[] = []
   const uvScrollers: UvScroller[] = []
 
   for (const object of bundle.objects) {
@@ -158,13 +130,6 @@ export const constructScene = (bundle: ObjectBundle): SceneBundle => {
 
     if (matchesAnyPrefix(name, SCENE_NAME_OPACITY_PULSE_PREFIXES)) {
       beatLights.push(buildOpacityLight(object, textures))
-
-      continue
-    }
-
-    if (matchesAnyPrefix(name, SCENE_NAME_START_BOOM_PREFIXES)) {
-      const built = buildObject(object, textures, { tagFor: polyTag })
-      startBooms.push({ group: built.group, polygonVertexIndices: collectPolygonRanges(built.taggedIndices) })
 
       continue
     }
@@ -200,5 +165,5 @@ export const constructScene = (bundle: ObjectBundle): SceneBundle => {
     base.add(buildObject(object, textures, {}).group)
   }
 
-  return { base, beatLights, crowdStands, fans, oilPumps, startBooms, uvScrollers }
+  return { base, beatLights, crowdStands, fans, oilPumps, uvScrollers }
 }

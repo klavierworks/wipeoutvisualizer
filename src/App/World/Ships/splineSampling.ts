@@ -14,9 +14,20 @@ export type LaneSample = {
   innerMin: number
 }
 
-export const splineLane = (spline: TrackSpline, t: number, config: RacerConfig): LaneSample => {
-  const desired =
-    config.startLane + Math.sin(t * config.laneFrequency * TWO_PI + config.lanePhase) * config.laneAmplitude
+export const splineLane = (
+  spline: TrackSpline,
+  t: number,
+  config: RacerConfig,
+  startLaneFade: number,
+  laneAdjust = 0,
+): LaneSample => {
+  // Cross-fade between the pre-race grid lane and the in-race swerve as
+  // startLaneFade ramps 0 → 1 after the gantry turns green. Without the
+  // blend, swerve would snap from 0 to its instantaneous sine value at green
+  // (a visible lateral jump), and config.startLane would keep dragging ships
+  // out to the wide start grid forever, ruining the race line.
+  const swerve = Math.sin(t * config.laneFrequency * TWO_PI + config.lanePhase) * config.laneAmplitude
+  const desired = config.startLane * (1 - startLaneFade) + swerve * startLaneFade + laneAdjust
   const param = (((t % 1) + 1) % 1) * spline.numSections
   const i0 = Math.floor(param) % spline.numSections
   const i1 = (i0 + 1) % spline.numSections

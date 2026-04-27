@@ -53,8 +53,15 @@ export const sectionNormal = (section: TrackSection, faces: TrackFace[], vertice
   return accumulator.normalize()
 }
 
-export const sectionCenter = (section: TrackSection, faces: TrackFace[], vertices: TrackVertex[]): null | Vector3 => {
-  const position = new Vector3()
+// x/z come from the canonical TRS waypoint (clean racing line, free of the
+// vertex-count bias of a centroid). y comes from the centroid of track-flagged
+// face vertices so the spline sits at a fixed offset above the actual surface
+// — using section.y here puts the spline at the section's bbox / waypoint
+// height, which on tracks with tall walls or tunnels can be far from the
+// drivable surface. Falls back to canonical section.y when a section has no
+// track faces (a gap) — flight ballistics carry the ship across the dip.
+export const sectionCenter = (section: TrackSection, faces: TrackFace[], vertices: TrackVertex[]): Vector3 => {
+  let ySum = 0
   let count = 0
 
   for (let i = section.first_face; i < section.first_face + section.num_faces; i++) {
@@ -65,14 +72,12 @@ export const sectionCenter = (section: TrackSection, faces: TrackFace[], vertice
     }
 
     for (const vertexIndex of face.indices) {
-      const vertex = vertices[vertexIndex]
-
-      position.x += vertex.x
-      position.y += -vertex.y
-      position.z += -vertex.z
+      ySum += -vertices[vertexIndex].y
       count++
     }
   }
 
-  return count > 0 ? position.divideScalar(count) : null
+  const y = count > 0 ? ySum / count : -section.y
+
+  return new Vector3(section.x, y, -section.z)
 }

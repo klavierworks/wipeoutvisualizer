@@ -10,14 +10,18 @@ import AudioProvider from './AudioProvider/AudioProvider'
 import AudioTicker from './AudioTicker/AudioTicker'
 import Billboards from './Billboards/Billboards'
 import ChaseCamera from './ChaseCamera/ChaseCamera'
+import Favicon from './Favicon/Favicon'
 import Hud from './Hud/Hud'
 import LevelSwapper from './LevelSwapper/LevelSwapper'
 import ReactivityTicker from './ReactivityTicker/ReactivityTicker'
 import Scene from './Scene/Scene'
+import SectionLabels from './SectionLabels/SectionLabels'
 import Ships from './Ships/Ships'
+import { useRacerTemplates } from './Ships/useRacerTemplates'
 import Sky from './SkyboxLayer/Sky/Sky'
 import SkyboxLayer from './SkyboxLayer/SkyboxLayer'
 import SplineDebug from './SplineDebug/SplineDebug'
+import StartGantry from './StartGantry/StartGantry'
 import Track from './Track/Track'
 
 type WorldProps = {
@@ -59,6 +63,8 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
 
   const current = levels[indexes.current]
   const next = levels[indexes.next]
+
+  const templates = useRacerTemplates(current.ships.meshes, leaderMeshOverride, shipIndex, RACER_COUNT)
 
   const handleSection = useCallback(
     (strength: number) => {
@@ -102,6 +108,7 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
               />
             </SkyboxLayer>
             <Scene bundle={current.scene} />
+            <StartGantry spline={current.ships.splines[0]} template={extras?.meshes.lights} />
             <Track
               racerLanesRef={racerLanesRef}
               racerSplineIndexesRef={racerSplineIndexesRef}
@@ -110,16 +117,16 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
               track={current.track}
             />
             {isDebug && <SplineDebug splines={current.ships.splines} />}
+            {isDebug && <SectionLabels spline={current.ships.splines[0]} />}
             <Ships
-              leaderMeshOverride={leaderMeshOverride}
               leaderRef={leaderRef}
               leaderSplineIndexRef={leaderSplineIndexRef}
               leaderTRef={leaderTRef}
               racerLanesRef={racerLanesRef}
               racerSplineIndexesRef={racerSplineIndexesRef}
               racerTsRef={racerTsRef}
-              shipIndex={shipIndex}
-              ships={current.ships}
+              splines={current.ships.splines}
+              templates={templates}
             />
             {isDebug ? (
               <OrbitControls makeDefault />
