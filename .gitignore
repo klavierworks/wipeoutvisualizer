@@ -25,4 +25,6 @@ dist-ssr
 
 gamefiles/*
 !gamefiles/README.md
+public/gamefiles
 reader/target
+.netlify
