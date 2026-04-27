@@ -1,7 +1,7 @@
 import type { DecodedImage } from '../../../../reader-bridge'
 
+import AtlasImage from '../../../AtlasImage/AtlasImage'
 import styles from '../Hud.module.css'
-import AtlasImage from './AtlasImage/AtlasImage'
 
 type AtlasRowProps = {
   images: DecodedImage[] | undefined
@@ -18,7 +18,7 @@ const AtlasRow = ({ images, label }: AtlasRowProps) => {
       <div className={styles.atlasLabel}>{label}</div>
       <div className={styles.atlasImages}>
         {images.map((image, index) => (
-          <AtlasImage image={image} key={index} />
+          <AtlasImage className={styles.atlasImage} image={image} key={index} />
         ))}
       </div>
     </div>

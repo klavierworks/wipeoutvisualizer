@@ -89,7 +89,7 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
       {({ pipeline }) => (
         <>
           <Canvas camera={{ far: 1000000, near: 0.1 }} gl={{ logarithmicDepthBuffer: true }}>
-            <AudioTicker pipeline={pipeline} />
+            {pipeline && <AudioTicker pipeline={pipeline} />}
             <ReactivityTicker />
             <LevelSwapper onSection={handleSection} />
             <Billboards />
@@ -97,13 +97,13 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
               <Sky
                 key={`sky-current-${indexes.current}`}
                 object={current.sky}
-                offlineSections={pipeline.offlineSections}
+                offlineSections={pipeline?.offlineSections ?? null}
                 role="current"
               />
               <Sky
                 key={`sky-next-${indexes.next}`}
                 object={next.sky}
-                offlineSections={pipeline.offlineSections}
+                offlineSections={pipeline?.offlineSections ?? null}
                 role="next"
               />
             </SkyboxLayer>
@@ -139,7 +139,7 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
               />
             )}
           </Canvas>
-          <Hud extras={extras} offlineSections={pipeline.offlineSections} />
+          {pipeline && <Hud extras={extras} offlineSections={pipeline.offlineSections} />}
         </>
       )}
     </AudioProvider>

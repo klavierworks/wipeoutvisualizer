@@ -45,6 +45,13 @@ export const START_LINE_SECTION_BY_TRACK: Record<string, number> = {
 export const TOTAL_LOAD_STEPS = LEVEL_PATHS.length + 1
 export const LEVEL_ADVANCE_STRENGTH = 0.6
 
+// ─── Loading: ?fakeloading=true ──────────────────────────────────────────
+// Per-phase delays injected when the URL flag is set, so we can eyeball
+// each stage of the loading UI without rebuilding gamefiles.
+export const FAKE_LOAD_REACT_MS = 5000
+export const FAKE_LOAD_STARTWAD_MS = 10000
+export const FAKE_LOAD_LEVELS_MS = 10000
+
 // ─── Track tile visuals ──────────────────────────────────────────────────
 export const HOT_COLOR: [number, number, number] = [2.5, 1.2, 0.4]
 export const BOOST_FALLOFF = 4
@@ -175,10 +182,10 @@ export const SHIP_SPEED_LOUD_MULTIPLIER = 1.35
 // ─── Reactivity: ship speed by BPM ───────────────────────────────────────
 export const SHIP_BPM_SPEED_MULTIPLIER: Record<number, number> = {
   0: 0,
-  60: 0.45,
-  100: 0.75,
-  120: 0.9,
-  140: 1,
+  60: 0.9,
+  100: 1.5,
+  120: 1.8,
+  140: 2,
 }
 export const SHIP_BPM_SPEED_LERP = 0.6
 

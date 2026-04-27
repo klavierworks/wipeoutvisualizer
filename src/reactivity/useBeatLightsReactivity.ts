@@ -30,24 +30,15 @@ const paintMesh = (mesh: Mesh, r: number, g: number, b: number): void => {
   colorAttribute.needsUpdate = true
 }
 
-const setOpacity = (materials: MeshBasicMaterial[], opacity: number): void => {
-  for (const material of materials) {
-    material.opacity = opacity
-  }
-}
-
 const useBeatLightsReactivity = (lights: BeatLight[]) => {
   useFrame(() => {
     const downbeatBonus = getIsDownbeat() ? BEAT_LIGHT_DOWNBEAT_BONUS : 0
     const intensity = audioState.beatPhase * BEAT_LIGHT_INTENSITY * (1 + downbeatBonus)
-    const opacity = audioState.beatPhase * (1 + downbeatBonus)
 
     for (const light of lights) {
       if (light.kind === 'opacity') {
-        setOpacity(light.materials, Math.min(1, opacity))
         continue
       }
-
       const mesh = findMesh(light.group)
 
       if (!mesh) {

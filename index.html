@@ -6,10 +6,42 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Wipeout Music Visualiser</title>
+  <style>
+    @font-face {
+      font-family: "2097";
+      src: url("/fonts/2097.ttf") format("truetype");
+      font-display: block;
+    }
+
+    html,
+    body {
+      margin: 0;
+      background: #000;
+      color: rgba(255, 255, 255, 0.87);
+      font-family: "2097", sans-serif;
+      min-height: 100vh;
+    }
+
+    #initial-loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      gap: 16px;
+    }
+  </style>
 </head>
 
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div id="initial-loading">
+      <canvas style="width: 48px; height: 48px;"></canvas>
+      Loading…
+    </div>
+  </div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

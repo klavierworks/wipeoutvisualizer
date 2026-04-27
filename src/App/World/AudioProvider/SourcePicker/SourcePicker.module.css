@@ -3,42 +3,39 @@
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(10, 12, 20, 0.85);
-  color: #e8ecff;
-  font: 500 14px/1.4 Inter, system-ui, sans-serif;
   z-index: 10;
-  backdrop-filter: blur(8px);
+  pointer-events: none;
 }
 
-.panel {
+.modal {
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 28px 36px;
-  border: 2px dashed rgba(255, 255, 255, 0.18);
-  border-radius: 14px;
-  background: rgba(20, 22, 34, 0.9);
-  min-width: 320px;
+  width: 580px;
+  background: rgb(56, 104, 196);
+  border: 3px solid white;
+  border-radius: 24px 0 24px 24px;
+  font-family: "2097", system-ui, sans-serif;
+  color: white;
   text-align: center;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.panelHover {
-  border-color: rgba(91, 125, 255, 0.7);
-  background: rgba(28, 32, 50, 0.95);
+  overflow: hidden;
 }
 
 .title {
-  font-size: 16px;
-  letter-spacing: 0.02em;
   margin: 0;
+  padding: 14px 28px;
+  background: rgb(28, 50, 110);
+  border-bottom: 4px solid white;
+  color: rgb(220, 36, 36);
+  font-size: 1.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.meta {
-  font-size: 12px;
-  color: rgba(232, 236, 255, 0.7);
-  margin: 0 0 8px 0;
+.buttons {
+  display: flex;
+  gap: 0;
+  padding: 0;
 }
 
 .fileInput {
@@ -46,32 +43,55 @@
 }
 
 .button {
-  padding: 10px 24px;
-  background: #5b7dff;
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
-  font: inherit;
-  font-weight: 600;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 130px;
+  padding: 18px;
+  background: rgb(28, 50, 110);
+  color: white;
+  border-radius: 0;
+  font-family: inherit;
+  font-size: 1.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
 
 .button:hover {
-  background: #708bff;
+  background: rgb(232, 30, 110);
+  color: white;
 }
 
-.buttonSecondary {
-  padding: 10px 24px;
-  background: transparent;
-  color: #e8ecff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
-.buttonSecondary:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.05);
+.buttonLabel {
+  display: block;
+}
+
+.message {
+  margin: 0;
+  padding: 14px 28px;
+  background: rgb(28, 50, 110);
+  border-top: 4px solid white;
+  color: white;
+  font-family: inherit;
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.error {
+  margin: 0;
+  padding: 14px 28px;
+  background: rgb(220, 36, 36);
+  border-top: 4px solid white;
+  color: white;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.9rem;
 }

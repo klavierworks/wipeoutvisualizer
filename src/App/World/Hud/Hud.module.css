@@ -67,7 +67,7 @@
   display: flex;
   flex-direction: column;
   font-size: 16px;
-  opacity: 0.1;
+  opacity: 0.5;
   line-height: 1;
   white-space: pre;
 }

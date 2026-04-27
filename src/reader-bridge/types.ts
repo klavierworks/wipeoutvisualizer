@@ -89,6 +89,11 @@ export type ReaderResult = {
   track: TrackData
 }
 
+export type StartwadAssets = {
+  atlases: Record<string, DecodedImage[]>
+  images: Record<string, DecodedImage>
+}
+
 export type TrackData = {
   faces: TrackFace[]
   images: DecodedImage[]

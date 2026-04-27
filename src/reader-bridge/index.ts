@@ -3,6 +3,7 @@ import type {
   ExtrasData,
   ObjectBundle,
   ReaderResult,
+  StartwadAssets,
   TrackData,
   UiAssets,
   WipeoutObject,
@@ -13,7 +14,15 @@ import { fetchAll, fetchBytes } from './fetch'
 import { unpackStartwad } from './startwad'
 import { getReader } from './wasm'
 
-export type { DecodedImage, ExtrasData, ObjectBundle, ReaderResult, TrackData, UiAssets } from './types'
+export type {
+  DecodedImage,
+  ExtrasData,
+  ObjectBundle,
+  ReaderResult,
+  StartwadAssets,
+  TrackData,
+  UiAssets,
+} from './types'
 export type {
   ObjectHeader,
   Polygon,
@@ -207,33 +216,43 @@ const UI_FONT_PATH = 'WIPEOUT2/TEXTURES/WOFONT.TIM'
 const UI_MENU_PATH = 'WIPEOUT2/COMMON/MENU.DAT'
 const UI_STARTWAD_PATH = 'WIPEOUT2/COMMON/STARTWAD.WAD'
 
-const loadUi = async (): Promise<UiAssets> => {
+export const loadStartwadAssets = async (): Promise<StartwadAssets> => {
   const reader = await getReader()
-  const [fontBytes, menu, startwadBytes] = await Promise.all([
-    fetchOptional(UI_FONT_PATH),
-    fetchOptional(UI_MENU_PATH),
-    fetchOptional(UI_STARTWAD_PATH),
-  ])
+  const startwadBytes = await fetchOptional(UI_STARTWAD_PATH)
 
   const images: Record<string, DecodedImage> = {}
   const atlases: Record<string, DecodedImage[]> = {}
 
-  if (startwadBytes) {
-    for (const entry of unpackStartwad(startwadBytes)) {
-      try {
-        if (entry.extension === 'tim') {
-          images[entry.stem] = reader.decode_image(entry.bytes) as DecodedImage
-        } else if (entry.extension === 'cmp') {
-          atlases[entry.stem] = await decodeImages(entry.bytes)
-        }
-        // PRMs in STARTWAD (rock, mine, miss, shld, ebolt, sroid, light)
-        // overlap with the COMMON/*.PRM files we already load via extras —
-        // skip here to avoid duplicate decoding.
-      } catch (e) {
-        console.warn(`[ui] STARTWAD ${entry.name} decode failed:`, e)
+  if (!startwadBytes) {
+    return { atlases, images }
+  }
+
+  for (const entry of unpackStartwad(startwadBytes)) {
+    try {
+      if (entry.extension === 'tim') {
+        images[entry.stem] = reader.decode_image(entry.bytes) as DecodedImage
+      } else if (entry.extension === 'cmp') {
+        atlases[entry.stem] = await decodeImages(entry.bytes)
       }
+      // PRMs in STARTWAD (rock, mine, miss, shld, ebolt, sroid, light)
+      // overlap with the COMMON/*.PRM files we already load via extras —
+      // skip here to avoid duplicate decoding.
+    } catch (e) {
+      console.warn(`[ui] STARTWAD ${entry.name} decode failed:`, e)
     }
   }
+
+  return { atlases, images }
+}
+
+const loadUiRest = async (startwad: StartwadAssets): Promise<UiAssets> => {
+  const reader = await getReader()
+  const [fontBytes, menu] = await Promise.all([
+    fetchOptional(UI_FONT_PATH),
+    fetchOptional(UI_MENU_PATH),
+  ])
+
+  const images: Record<string, DecodedImage> = { ...startwad.images }
 
   // Standalone WOFONT.TIM — always preferred over the STARTWAD copy if present.
   if (fontBytes) {
@@ -244,16 +263,16 @@ const loadUi = async (): Promise<UiAssets> => {
     }
   }
 
-  return { atlases, images, menu }
+  return { atlases: startwad.atlases, images, menu }
 }
 
-export const loadExtras = async (): Promise<ExtrasData> => {
+export const loadExtras = async (startwad: StartwadAssets): Promise<ExtrasData> => {
   const { cmpPaths, prmPaths } = collectExtraPaths()
 
   const [cmpEntries, prmEntries, ui] = await Promise.all([
     Promise.all(cmpPaths.map(loadCmp)),
     Promise.all(prmPaths.map(loadPrm)),
-    loadUi(),
+    loadUiRest(startwad),
   ])
 
   const cmpCache: CmpCache = Object.fromEntries(cmpEntries)

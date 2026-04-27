@@ -6,6 +6,7 @@ import { audioState, type AudioState } from '../../../audio/state'
 import { formatRemaining } from './formatRemaining'
 
 export type HudReadouts = {
+  sectionLabel: string
   sectionRemaining: string
   snapshot: AudioState
   tempo: string
@@ -51,7 +52,10 @@ const computeTrackRemaining = (): string => {
 
 const computeTempo = (): string => (audioState.bpm > 0 ? String(Math.round(audioState.bpm)) : PLACEHOLDER)
 
+const computeSectionLabel = (): string => (audioState.sourceKind === 'mic' ? 'Live' : 'Check')
+
 const buildReadouts = (offlineSections: null | SectionInfo[]): HudReadouts => ({
+  sectionLabel: computeSectionLabel(),
   sectionRemaining: computeSectionRemaining(offlineSections),
   snapshot: audioState,
   tempo: computeTempo(),

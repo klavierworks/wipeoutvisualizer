@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
 
-import { START_LINE_SECTION_BY_TRACK } from '../constants'
+import type { StartwadAssets } from '../reader-bridge'
+
+import { FAKE_LOAD_LEVELS_MS, FAKE_LOAD_STARTWAD_MS, START_LINE_SECTION_BY_TRACK } from '../constants'
 import { type Built, type BuiltExtras, construct, constructExtras } from '../constructor'
-import { loadExtras, loadTrack } from '../reader-bridge'
+import { fakeLoadingDelay } from '../fakeLoading'
+import { loadExtras, loadStartwadAssets, loadTrack } from '../reader-bridge'
 
 export type LevelLoadResult = {
   extras: BuiltExtras | null
   levels: Built[] | null
-  progress: LoadProgress
+  startwad: null | StartwadAssets
 }
-
-export type LoadProgress = { loaded: number; total: number }
 
 const loadOneLevel = async (path: string): Promise<Built | null> => {
   try {
@@ -28,10 +29,10 @@ const loadOneLevel = async (path: string): Promise<Built | null> => {
   }
 }
 
-const loadAllExtras = async (): Promise<BuiltExtras | null> => {
+const loadAllExtras = async (startwad: StartwadAssets): Promise<BuiltExtras | null> => {
   try {
     const start = performance.now()
-    const built = constructExtras(await loadExtras())
+    const built = constructExtras(await loadExtras(startwad))
 
     console.log(
       `[load] extras (${Object.keys(built.meshes).length} meshes, ${Object.keys(built.atlases).length} atlases) in ${(performance.now() - start).toFixed(0)}ms`,
@@ -47,52 +48,57 @@ const loadAllExtras = async (): Promise<BuiltExtras | null> => {
 }
 
 export const useLevelLoader = (levelPaths: string[]): LevelLoadResult => {
-  const total = levelPaths.length + 1
   const [levels, setLevels] = useState<Built[] | null>(null)
   const [extras, setExtras] = useState<BuiltExtras | null>(null)
-  const [progress, setProgress] = useState<LoadProgress>({ loaded: 0, total })
+  const [startwad, setStartwad] = useState<null | StartwadAssets>(null)
 
   useEffect(() => {
     let isCancelled = false
-    let loaded = 0
 
-    const bump = () => {
-      loaded++
+    const run = async () => {
+      await fakeLoadingDelay(FAKE_LOAD_STARTWAD_MS)
 
-      if (!isCancelled) {
-        setProgress({ loaded, total })
+      const startwadAssets = await loadStartwadAssets()
+
+      if (isCancelled) {
+        return
       }
+
+      setStartwad(startwadAssets)
+
+      await fakeLoadingDelay(FAKE_LOAD_LEVELS_MS)
+
+      if (isCancelled) {
+        return
+      }
+
+      const [extrasBuilt, levelResults] = await Promise.all([
+        loadAllExtras(startwadAssets),
+        Promise.all(levelPaths.map(loadOneLevel)),
+      ])
+
+      if (isCancelled) {
+        return
+      }
+
+      const loadedLevels = levelResults.filter((entry): entry is Built => entry !== null)
+
+      if (loadedLevels.length === 0) {
+        console.error('[load] no levels loaded')
+
+        return
+      }
+
+      setLevels(loadedLevels)
+      setExtras(extrasBuilt)
     }
 
-    const extrasPromise = loadAllExtras().finally(bump)
-
-    const levelsPromise = Promise.all(
-      levelPaths.map((path) => loadOneLevel(path).finally(bump)),
-    )
-
-    Promise.all([extrasPromise, levelsPromise])
-      .then(([extrasBuilt, levelResults]) => {
-        if (isCancelled) {
-          return
-        }
-
-        const loadedLevels = levelResults.filter((entry): entry is Built => entry !== null)
-
-        if (loadedLevels.length === 0) {
-          console.error('[load] no levels loaded')
-
-          return
-        }
-
-        setLevels(loadedLevels)
-        setExtras(extrasBuilt)
-      })
-      .catch((error) => console.error('[load] failed', error))
+    run().catch((error) => console.error('[load] failed', error))
 
     return () => {
       isCancelled = true
     }
-  }, [levelPaths, total])
+  }, [levelPaths])
 
-  return { extras, levels, progress }
+  return { extras, levels, startwad }
 }

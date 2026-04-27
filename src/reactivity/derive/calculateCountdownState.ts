@@ -4,13 +4,14 @@ import { COUNTDOWN_AUDIO_RMS_THRESHOLD } from '../../constants'
 export type CountdownState = 'green' | 'red' | 'yellow'
 
 let hasEverBeenGreen = false
+let hasEverBeenYellow = false
 
 export const calculateCountdownState = (): CountdownState => {
   if (hasEverBeenGreen) {
     return 'green'
   }
 
-  if (audioState.rms < COUNTDOWN_AUDIO_RMS_THRESHOLD) {
+  if (!hasEverBeenYellow && audioState.rms < COUNTDOWN_AUDIO_RMS_THRESHOLD) {
     return 'red'
   }
 
@@ -19,6 +20,8 @@ export const calculateCountdownState = (): CountdownState => {
 
     return 'green'
   }
+
+  hasEverBeenYellow = true
 
   return 'yellow'
 }

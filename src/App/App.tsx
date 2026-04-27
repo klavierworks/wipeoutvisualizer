@@ -16,7 +16,7 @@ const App = () => {
   const isDebug = useMemo(readDebugFlag, [])
   const shipIndex = useMemo(resolveShipIndex, [])
 
-  const { extras, levels, progress } = useLevelLoader(levelPaths)
+  const { extras, levels, startwad } = useLevelLoader(levelPaths)
 
   const [leaderMeshKey, setLeaderMeshKey] = useState<null | string>(null)
 
@@ -46,7 +46,7 @@ const App = () => {
   }, [extras])
 
   if (!levels) {
-    return <Loading loaded={progress.loaded} total={progress.total} />
+    return <Loading startwad={startwad} />
   }
 
   return (

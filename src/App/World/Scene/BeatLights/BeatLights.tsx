@@ -12,7 +12,12 @@ const BeatLights = ({ lights }: BeatLightsProps) => {
   return (
     <>
       {lights.map((light, index) => (
-        <primitive key={index} object={light.group} scale={1} />
+        <primitive
+          key={index}
+          object={light.group}
+          scale={1}
+          visible={light.kind === 'opacity' ? Math.random() > 0.5 : true}
+        />
       ))}
     </>
   )
