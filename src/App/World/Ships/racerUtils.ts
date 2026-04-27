@@ -20,6 +20,8 @@ import {
   KICK_GAIN,
   LAUNCH_ANGLE,
   LAUNCH_RAMP_LERP,
+  LEADER_PACK_BIAS_GAIN,
+  LEADER_PACK_BIAS_MAX,
   LOOK_AHEAD,
   MAX_ORIENT_PITCH,
   MAX_PITCH,
@@ -165,7 +167,36 @@ export const updateBoostState = (
   motion.boostFactor += (target - motion.boostFactor) * alpha
 }
 
-export const advanceAlongSpline = (motion: RacerMotion, config: RacerConfig, splineCount: number, dt: number): void => {
+export const calculateLeaderPackBias = (motion: RacerMotion, motions: RacerMotion[]): number => {
+  // Wrap each peer's t-gap into (-0.5, 0.5] so we measure the *shorter* signed
+  // distance around the lap. Median of those gaps is "where the pack sits"
+  // relative to the player; positive means the median is ahead.
+  const deltas = motions
+    .filter((other) => other !== motion)
+    .map((other) => {
+      const raw = other.t - motion.t
+
+      return (((raw + 0.5) % 1) + 1) % 1 - 0.5
+    })
+    .sort((a, b) => a - b)
+
+  if (deltas.length === 0) {
+    return 0
+  }
+
+  const middle = Math.floor(deltas.length / 2)
+  const median = deltas.length % 2 === 0 ? (deltas[middle - 1] + deltas[middle]) / 2 : deltas[middle]
+
+  return clamp(median * LEADER_PACK_BIAS_GAIN, -LEADER_PACK_BIAS_MAX, LEADER_PACK_BIAS_MAX)
+}
+
+export const advanceAlongSpline = (
+  motion: RacerMotion,
+  config: RacerConfig,
+  splineCount: number,
+  packBias: number,
+  dt: number,
+): void => {
   // Decay any pending collision-impulse lane offset toward zero (regardless of
   // racing state — we still want pre-race nudges to settle).
   motion.collisionLaneOffset *= Math.exp(-dt * COLLISION_OFFSET_DECAY)
@@ -181,7 +212,7 @@ export const advanceAlongSpline = (motion: RacerMotion, config: RacerConfig, spl
   motion.startLaneFade += (1 - motion.startLaneFade) * laneFadeAlpha
 
   const speedSine = Math.sin(motion.t * config.speedFrequency * TWO_PI + config.speedPhase)
-  const intrinsic = 1 + config.speedBias + speedSine * config.speedAmplitude
+  const intrinsic = 1 + packBias + speedSine * config.speedAmplitude
   const barSurge = 1 + Math.sin((audioState.barPhase + config.barOffset) * TWO_PI) * BAR_GAIN
   const tileBoost = 1 + motion.boostFactor * (BOOST_TILE_GAIN - 1)
   const sectionEnergyMultiplier = calculateShipSpeedMultiplier()
@@ -194,6 +225,12 @@ export const advanceAlongSpline = (motion: RacerMotion, config: RacerConfig, spl
     sectionEnergyMultiplier *
     bpmMultiplier *
     motion.launchProgress
+
+    if (config.startLane === 0) {
+      console.log(config,speedFactor)
+    } else {
+      console.log(config)
+    }
   const stressFactor = Math.max(0, 1 - motion.wallStress)
   const previousT = motion.t
 

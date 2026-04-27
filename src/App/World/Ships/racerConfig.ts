@@ -1,5 +1,4 @@
 import {
-  LEADER_SPEED_BIAS,
   PRIMARY_ROUTE_PROBABILITY,
   START_GRID_LANE_WIDTH,
   START_GRID_ROW_GAP_SECTIONS,
@@ -12,7 +11,6 @@ export type RacerConfig = {
   laneFrequency: number
   lanePhase: number
   speedAmplitude: number
-  speedBias: number
   speedFrequency: number
   speedPhase: number
   splineIndex: number
@@ -48,7 +46,6 @@ export const makeRacerConfig = (
     laneFrequency: 1 + Math.random() * 2,
     lanePhase: Math.random() * TWO_PI,
     speedAmplitude: 0.05 + Math.random() * 0.1,
-    speedBias: index === 0 ? LEADER_SPEED_BIAS : 0,
     speedFrequency: 1 + Math.random() * 3,
     speedPhase: Math.random() * TWO_PI,
     splineIndex: pickSplineIndex(splineCount),

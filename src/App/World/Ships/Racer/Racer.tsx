@@ -10,6 +10,7 @@ import { pickSplineIndex } from '../racerConfig'
 import {
   advanceAlongSpline,
   buildBasisMatrix,
+  calculateLeaderPackBias,
   clampToTrack,
   computeOrientationTangent,
   samplePath,
@@ -30,12 +31,13 @@ type RacerProps = {
   index: number
   leaderOutputs?: LeaderOutputs
   motion: RacerMotion
+  motions: RacerMotion[]
   racerOutputs?: RacerOutputs
   splines: TrackSpline[]
   template: Group
 }
 
-const Racer = ({ config, index, leaderOutputs, motion, racerOutputs, splines, template }: RacerProps) => {
+const Racer = ({ config, index, leaderOutputs, motion, motions, racerOutputs, splines, template }: RacerProps) => {
   const motionRef = useRef(motion)
   const isBoostingRef = useRef(false)
   const groupRef = useRef<Group | null>(null)
@@ -58,7 +60,9 @@ const Racer = ({ config, index, leaderOutputs, motion, racerOutputs, splines, te
     updateBoostState(motion, splines[motion.splineIndex], config, dt)
     isBoostingRef.current = motion.boostTimer > 0
 
-    advanceAlongSpline(motion, config, splines.length, dt)
+    const packBias = leaderOutputs ? calculateLeaderPackBias(motion, motions) : 0
+
+    advanceAlongSpline(motion, config, splines.length, packBias, dt)
 
     const spline = splines[motion.splineIndex]
     const sample = samplePath(spline, motion, config)

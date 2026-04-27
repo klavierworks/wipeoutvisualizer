@@ -127,10 +127,13 @@ export const START_GRID_ROW_GAP_SECTIONS = 2
 export const BASE_SPEED = 0.02
 export const SHIP_HOVER_HEIGHT = 200
 export const PRIMARY_ROUTE_PROBABILITY = 0.66
-// Constant added to the leader's mean speed factor (~+2% by default) so the
-// player drifts back into the pack after being passed instead of falling
-// behind permanently. Other ships keep mean = 1.
-export const LEADER_SPEED_BIAS = 0.02
+// Rubber-band that pulls the player toward the pack median: each frame we
+// add `gain * signedGapToMedian` to the player's mean speed factor (clamped
+// to ±MAX). Positive gap = median is ahead → speed up; negative = player is
+// ahead → slow down. Replaces a constant +bias which let the player drift
+// permanently to the front. Other ships keep mean = 1.
+export const LEADER_PACK_BIAS_GAIN = 0.6
+export const LEADER_PACK_BIAS_MAX = 0.04
 // Speed ramp is the per-ship `launchProgress` factor on speedFactor; the lane
 // fade is the cross-blend in splineLane that pulls ships off the wide start
 // grid back toward the race line. Split so a snappy launch can pair with a

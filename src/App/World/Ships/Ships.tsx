@@ -73,6 +73,7 @@ const Ships = ({
           key={i}
           leaderOutputs={i === 0 ? leaderOutputs : undefined}
           motion={motionsRef.current[i]}
+          motions={motionsRef.current}
           racerOutputs={racerOutputs}
           splines={splines}
           template={templates[i]}
