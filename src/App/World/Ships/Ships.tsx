@@ -1,85 +1,40 @@
-import { MutableRefObject, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 
 import type { TrackSpline } from '../../../constructor/trackSpline'
+import type { Ship as ShipType } from './ship'
 
-import { RACER_COUNT } from '../../../constants'
-import Racer from './Racer/Racer'
-import { makeRacerConfig, type RacerConfig } from './racerConfig'
-import { type LeaderOutputs, makeRacerMotion, type RacerMotion, type RacerOutputs } from './racerUtils'
+import Ship from './Ship/Ship'
 import ShipCollisions from './ShipCollisions/ShipCollisions'
+import { calculatePackBias, tickShip } from './shipUtils'
 
 type ShipsProps = {
-  leaderRef?: MutableRefObject<Group | null>
-  leaderSplineIndexRef?: MutableRefObject<number>
-  leaderTRef?: MutableRefObject<number>
-  racerLanesRef?: MutableRefObject<Float32Array>
-  racerSplineIndexesRef?: MutableRefObject<Int32Array>
-  racerTsRef?: MutableRefObject<Float32Array>
+  ships: ShipType[]
   splines: TrackSpline[]
   templates: Group[]
 }
 
-const Ships = ({
-  leaderRef,
-  leaderSplineIndexRef,
-  leaderTRef,
-  racerLanesRef,
-  racerSplineIndexesRef,
-  racerTsRef,
-  splines,
-  templates,
-}: ShipsProps) => {
-  const configsRef = useRef<RacerConfig[]>(
-    Array.from({ length: RACER_COUNT }, (_, i) =>
-      makeRacerConfig(
-        i,
-        RACER_COUNT,
-        splines.length,
-        splines[0].startLineT,
-        splines[0].numSections,
-      ),
-    ),
-  );
+const Ships = ({ ships, splines, templates }: ShipsProps) => {
+  useFrame((_, dt) => {
+    for (let i = 0; i < ships.length; i++) {
+      const ship = ships[i]
+      const group = ship.groupRef.current
 
-  // Motions live here (not inside Racer) so ShipCollisions can do pairwise
-  // lateral nudges across the whole field each frame.
-  const motionsRef = useRef<RacerMotion[]>(
-    configsRef.current.map((config) => makeRacerMotion(config))
-  );
+      if (!group) {
+        continue
+      }
 
-  const leaderOutputs = useMemo<LeaderOutputs | undefined>(() => {
-    if (!leaderRef || !leaderTRef || !leaderSplineIndexRef) {
-      return undefined
+      const packBias = ship.isCameraTarget ? calculatePackBias(ship, ships) : 0
+      tickShip(ship, splines, packBias, dt)
     }
-
-    return { groupRef: leaderRef, splineIndexRef: leaderSplineIndexRef, tRef: leaderTRef }
-  }, [leaderRef, leaderTRef, leaderSplineIndexRef])
-
-  const racerOutputs = useMemo<RacerOutputs | undefined>(() => {
-    if (!racerTsRef || !racerLanesRef || !racerSplineIndexesRef) {
-      return undefined
-    }
-
-    return { lanes: racerLanesRef, splineIndexes: racerSplineIndexesRef, ts: racerTsRef }
-  }, [racerTsRef, racerLanesRef, racerSplineIndexesRef])
+  })
 
   return (
     <>
-      {configsRef.current.map((config, i) => (
-        <Racer
-          config={config}
-          index={i}
-          key={i}
-          leaderOutputs={i === 0 ? leaderOutputs : undefined}
-          motion={motionsRef.current[i]}
-          motions={motionsRef.current}
-          racerOutputs={racerOutputs}
-          splines={splines}
-          template={templates[i]}
-        />
+      {ships.map((ship, i) => (
+        <Ship key={i} ship={ship} template={templates[i]} />
       ))}
-      <ShipCollisions motions={motionsRef.current} />
+      <ShipCollisions ships={ships} />
     </>
   )
 }

@@ -1,28 +1,29 @@
-import { MutableRefObject } from 'react'
 import { Group } from 'three'
 
-import useWarpTransition from '../../useWarpTransition'
+import type { Ship as ShipType } from '../ship'
+
+import useWarpTransition from '../useWarpTransition'
 import Plume from './Plume/Plume'
 
 type ShipProps = {
-  isBoostingRef: MutableRefObject<boolean>
+  ship: ShipType
   template: Group
 }
 
-const Ship = ({ isBoostingRef, template }: ShipProps) => {
+const Ship = ({ ship, template }: ShipProps) => {
   const clones = useWarpTransition(template)
 
   return (
-    <>
+    <group ref={ship.groupRef} scale={0.5}>
       <primitive key={clones.current.group.uuid} object={clones.current.group} scale={1} />
-      <Plume isBoostingRef={isBoostingRef} warpShip={clones.current} />
+      <Plume ship={ship} warpShip={clones.current} />
       {clones.departing && (
         <>
           <primitive key={clones.departing.group.uuid} object={clones.departing.group} scale={3} />
-          <Plume isBoostingRef={isBoostingRef} warpShip={clones.departing} />
+          <Plume ship={ship} warpShip={clones.departing} />
         </>
       )}
-    </>
+    </group>
   )
 }
 

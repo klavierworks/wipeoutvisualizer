@@ -3,35 +3,29 @@ import type { BufferAttribute, Mesh } from 'three'
 import { useFrame } from '@react-three/fiber'
 import { MutableRefObject, useRef } from 'react'
 
+import type { Ship } from '../App/World/Ships/ship'
 import type { BoostSection } from '../constructor/track'
 import type { TrackSpline } from '../constructor/trackSpline'
 
 import { audioState } from '../audio'
 import { BOOST_FALLOFF, BOOST_KICK_THRESHOLD, HOT_COLOR } from '../constants'
 
-type RacerRefs = {
-  lanesRef: MutableRefObject<Float32Array>
-  splineIndexesRef: MutableRefObject<Int32Array>
-  tsRef: MutableRefObject<Float32Array>
-}
-
-const seedPulsesFromRacers = (
+const seedPulsesFromShips = (
   pulses: Float32Array,
   lastBoostByShipRef: MutableRefObject<Int32Array>,
   splines: TrackSpline[],
-  ts: Float32Array,
-  lanes: Float32Array,
-  splineIndexes: Int32Array,
+  ships: Ship[],
 ): void => {
-  if (lastBoostByShipRef.current.length !== ts.length) {
-    lastBoostByShipRef.current = new Int32Array(ts.length).fill(-1)
+  if (lastBoostByShipRef.current.length !== ships.length) {
+    lastBoostByShipRef.current = new Int32Array(ships.length).fill(-1)
   }
 
   const lastBoostByShip = lastBoostByShipRef.current
 
-  for (let shipIndex = 0; shipIndex < ts.length; shipIndex++) {
-    const spline = splines[splineIndexes[shipIndex]]
-    const sectionIndex = spline ? spline.boostPulseAt(ts[shipIndex], lanes[shipIndex]) : -1
+  for (let shipIndex = 0; shipIndex < ships.length; shipIndex++) {
+    const ship = ships[shipIndex]
+    const spline = splines[ship.pose.splineIndex]
+    const sectionIndex = spline ? spline.boostPulseAt(ship.pose.lapProgress, ship.lane.current) : -1
 
     if (sectionIndex >= 0 && sectionIndex !== lastBoostByShip[shipIndex]) {
       pulses[sectionIndex] = 1
@@ -75,7 +69,7 @@ const useBoostTilesReactivity = (
   sections: BoostSection[],
   splines: TrackSpline[],
   baseColor: [number, number, number],
-  racerRefs: RacerRefs | undefined,
+  ships: Ship[],
 ) => {
   const pulsesRef = useRef<Float32Array>(new Float32Array(sections.length))
   const lastBoostByShipRef = useRef<Int32Array>(new Int32Array(0))
@@ -87,13 +81,7 @@ const useBoostTilesReactivity = (
       return
     }
 
-    if (racerRefs) {
-      const ts = racerRefs.tsRef.current
-      const lanes = racerRefs.lanesRef.current
-      const splineIndexes = racerRefs.splineIndexesRef.current
-
-      seedPulsesFromRacers(pulsesRef.current, lastBoostByShipRef, splines, ts, lanes, splineIndexes)
-    }
+    seedPulsesFromShips(pulsesRef.current, lastBoostByShipRef, splines, ships)
 
     const isKickAbove = audioState.kick > BOOST_KICK_THRESHOLD
 
@@ -106,7 +94,7 @@ const useBoostTilesReactivity = (
 
     const colorAttribute = mesh.geometry.getAttribute('color') as BufferAttribute
     const colors = colorAttribute.array as Float32Array
-    
+
     writeBoostColors(colors, sections, pulsesRef.current, baseColor, kickPulseRef.current, dt)
     colorAttribute.needsUpdate = true
   })

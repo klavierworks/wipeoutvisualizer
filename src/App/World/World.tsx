@@ -1,6 +1,6 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Group } from 'three'
 
 import type { BuiltExtras } from '../../constructor'
@@ -18,6 +18,7 @@ import Scene from './Scene/Scene'
 import SectionLabels from './SectionLabels/SectionLabels'
 import Ships from './Ships/Ships'
 import { useRacerTemplates } from './Ships/useRacerTemplates'
+import useShipFleet from './Ships/useShipFleet'
 import Sky from './SkyboxLayer/Sky/Sky'
 import SkyboxLayer from './SkyboxLayer/SkyboxLayer'
 import SplineDebug from './SplineDebug/SplineDebug'
@@ -80,13 +81,6 @@ const pickDifferent = (length: number, exclude: number): number => {
 }
 
 const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipIndex }: WorldProps) => {
-  const leaderRef = useRef<Group | null>(null)
-  const leaderTRef = useRef<number>(0)
-  const leaderSplineIndexRef = useRef<number>(0)
-  const racerTsRef = useRef<Float32Array>(new Float32Array(RACER_COUNT))
-  const racerLanesRef = useRef<Float32Array>(new Float32Array(RACER_COUNT))
-  const racerSplineIndexesRef = useRef<Int32Array>(new Int32Array(RACER_COUNT))
-
   const [indexes, setIndexes] = useState(() => {
     const current = Math.floor(Math.random() * levels.length)
 
@@ -98,6 +92,7 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
   const currentPath = levels[indexes.current].path
 
   const templates = useRacerTemplates(current.ships.meshes, leaderMeshOverride, shipIndex, RACER_COUNT)
+  const { ships } = useShipFleet(current.ships.splines)
 
   const leaderName = useMemo(
     () => resolveLeaderName(templates[0], current.ships.meshes, extras),
@@ -148,34 +143,14 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
             </SkyboxLayer>
             <Scene bundle={current.scene} />
             <StartGantry spline={current.ships.splines[0]} template={extras?.meshes.lights} />
-            <Track
-              racerLanesRef={racerLanesRef}
-              racerSplineIndexesRef={racerSplineIndexesRef}
-              racerTsRef={racerTsRef}
-              splines={current.ships.splines}
-              track={current.track}
-            />
+            <Track ships={ships} splines={current.ships.splines} track={current.track} />
             {isDebug && <SplineDebug splines={current.ships.splines} />}
             {isDebug && <SectionLabels spline={current.ships.splines[0]} />}
-            <Ships
-              leaderRef={leaderRef}
-              leaderSplineIndexRef={leaderSplineIndexRef}
-              leaderTRef={leaderTRef}
-              racerLanesRef={racerLanesRef}
-              racerSplineIndexesRef={racerSplineIndexesRef}
-              racerTsRef={racerTsRef}
-              splines={current.ships.splines}
-              templates={templates}
-            />
+            <Ships ships={ships} splines={current.ships.splines} templates={templates} />
             {isDebug ? (
               <OrbitControls makeDefault />
             ) : (
-              <ChaseCamera
-                leaderSplineIndex={leaderSplineIndexRef}
-                leaderT={leaderTRef}
-                splines={current.ships.splines}
-                target={leaderRef}
-              />
+              <ChaseCamera ships={ships} splines={current.ships.splines} />
             )}
           </Canvas>
           {pipeline && (

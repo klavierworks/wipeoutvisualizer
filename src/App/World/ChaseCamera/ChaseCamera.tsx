@@ -1,35 +1,39 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { MutableRefObject, RefObject } from 'react'
-import { Group, Vector3 } from 'three'
+import { Vector3 } from 'three'
 
 import type { TrackSpline } from '../../../constructor/trackSpline'
+import type { Ship } from '../Ships/ship'
 
 import { CAMERA_BACK_OFFSET, CAMERA_TANGENT_LAG, CAMERA_UP_OFFSET } from '../../../constants'
 
 type ChaseCameraProps = {
-  leaderSplineIndex: MutableRefObject<number>
-  leaderT: MutableRefObject<number>
+  ships: Ship[]
   splines: TrackSpline[]
-  target: RefObject<Group | null>
 }
 
 const _shipPos = new Vector3()
 const _tangent = new Vector3()
 
-const ChaseCamera = ({ leaderSplineIndex, leaderT, splines, target }: ChaseCameraProps) => {
+const ChaseCamera = ({ ships, splines }: ChaseCameraProps) => {
   const { camera } = useThree()
 
   useFrame(() => {
-    const ship = target.current
+    const ship = ships.find((candidate) => candidate.isCameraTarget)
 
     if (!ship) {
       return
     }
 
-    ship.getWorldPosition(_shipPos)
+    const group = ship.groupRef.current
 
-    const spline = splines[leaderSplineIndex.current] ?? splines[0]
-    const tangentT = (((leaderT.current - CAMERA_TANGENT_LAG) % 1) + 1) % 1
+    if (!group) {
+      return
+    }
+
+    group.getWorldPosition(_shipPos)
+
+    const spline = splines[ship.pose.splineIndex] ?? splines[0]
+    const tangentT = (((ship.pose.lapProgress - CAMERA_TANGENT_LAG) % 1) + 1) % 1
     spline.curve.getTangentAt(tangentT, _tangent).normalize()
 
     camera.position.copy(_shipPos).addScaledVector(_tangent, -CAMERA_BACK_OFFSET)
