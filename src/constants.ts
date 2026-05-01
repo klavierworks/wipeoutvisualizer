@@ -15,14 +15,14 @@ export const CORRECTION = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0)
 export const LEVEL_PATHS = [
   'WIPEOUT2/TRACK01',
   'WIPEOUT2/TRACK02',
-  'WIPEOUT2/TRACK04',
+  //'WIPEOUT2/TRACK04',
   'WIPEOUT2/TRACK06',
   'WIPEOUT2/TRACK07',
   'WIPEOUT2/TRACK08',
   'WIPEOUT2/TRACK13',
   'WIPEOUT2/TRACK17',
   'WIPEOUT2/TRACK20',
-  'WIPEOUT2/TRACK04/BONUS2',
+  //'WIPEOUT2/TRACK04/BONUS2',
   'WIPEOUT2/TRACK02/LIBBAK',
 ]
 // Per-track index (in the source TRS section ordering) of the start line.
@@ -61,8 +61,25 @@ export const WEAPON_FALLOFF = 3.5
 // Height above the track surface to anchor the floating-lights gantry. Ship
 // hover is 200 and the gantry mesh is ~850 units tall, so 700 puts the arch
 // well clear of the ships at idle.
-export const START_GANTRY_HEIGHT = 1500
-export const START_GANTRY_DISTANCE = 4000;
+export const START_GANTRY_HEIGHT = 900
+export const START_GANTRY_DISTANCE = 4000
+// Per-track manual rotation (radians) around the gantry's local X axis (the
+// arch-width axis after normalization). Lets us tune each track individually
+// when the source spline at the start line produces an arch that lands tilted
+// or flipped. Zero leaves the auto-aligned pose unchanged.
+export const START_GANTRY_ROTATION_X_BY_TRACK: Record<string, number> = {
+  'WIPEOUT2/TRACK01': 0,
+  'WIPEOUT2/TRACK02': 0,
+  'WIPEOUT2/TRACK02/LIBBAK': 0,
+  'WIPEOUT2/TRACK04': 0,
+  'WIPEOUT2/TRACK04/BONUS2': 0,
+  'WIPEOUT2/TRACK06': Math.PI / 1.5,
+  'WIPEOUT2/TRACK07': 0,
+  'WIPEOUT2/TRACK08': 0,
+  'WIPEOUT2/TRACK13': Math.PI / 1,
+  'WIPEOUT2/TRACK17': Math.PI / 0.9,
+  'WIPEOUT2/TRACK20': Math.PI / 4,
+}
 // Countdown light tints — phoboslab/wipeout-rewrite scene.c:148-183.
 export const COUNTDOWN_RED = new Color(0xff0000)
 export const COUNTDOWN_YELLOW = new Color(0xff8000)
@@ -145,8 +162,8 @@ export const START_LANE_FADE_LERP = 0.1
 export const BASS_GAIN = 0.35
 export const KICK_GAIN = 0.45
 export const BAR_GAIN = 0.15
-export const BOOST_TILE_GAIN = 2
-export const BOOST_DURATION = 2
+export const BOOST_TILE_GAIN = 1.5
+export const BOOST_DURATION = 1.5
 export const BOOST_RAMP_UP_LERP = 10
 export const BOOST_RAMP_DOWN_LERP = 2
 
@@ -216,8 +233,8 @@ export const BOOST_KICK_THRESHOLD = 0.55
 export const BOOST_KICK_TILE_FRACTION = 0.25
 
 // ─── Reactivity: sky section-energy tint ─────────────────────────────────
-export const SKY_TINT_QUIET = 0.78
-export const SKY_TINT_LOUD = 1.12
+export const SKY_TINT_QUIET = 1
+export const SKY_TINT_LOUD = 2
 
 // ─── Plume ───────────────────────────────────────────────────────────────
 export const BOOST_FACTOR_LERP = 6

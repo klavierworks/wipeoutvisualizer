@@ -1,9 +1,15 @@
-import { DoubleSide, Group, Mesh, MeshBasicMaterial } from 'three'
+import { Color, DoubleSide, Group, Mesh, MeshBasicMaterial } from 'three'
 
 import type { SectionInfo } from '../../../../audio/preanalysis/sections'
 
 import { audioState } from '../../../../audio'
 import { SKY_FADE_SECONDS } from '../../../../constants'
+
+export const getSkyBaseColor = (material: MeshBasicMaterial): Color | undefined => {
+  const stored = material.userData.skyBaseColor
+
+  return stored instanceof Color ? stored : undefined
+}
 
 export type SkyRole = 'current' | 'next'
 
@@ -40,6 +46,10 @@ const configureMaterial = (
   offlineSections: null | SectionInfo[],
 ): void => {
   material.side = DoubleSide
+
+  if (!getSkyBaseColor(material)) {
+    material.userData.skyBaseColor = material.color.clone()
+  }
 
   if (isNext) {
     material.transparent = true

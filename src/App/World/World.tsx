@@ -142,7 +142,11 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
               />
             </SkyboxLayer>
             <Scene bundle={current.scene} />
-            <StartGantry spline={current.ships.splines[0]} template={extras?.meshes.lights} />
+            <StartGantry
+              spline={current.ships.splines[0]}
+              template={extras?.meshes.lights}
+              trackPath={currentPath}
+            />
             <Track ships={ships} splines={current.ships.splines} track={current.track} />
             {isDebug && <SplineDebug splines={current.ships.splines} />}
             {isDebug && <SectionLabels spline={current.ships.splines[0]} />}

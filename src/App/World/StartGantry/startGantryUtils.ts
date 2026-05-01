@@ -1,9 +1,17 @@
-import { BufferAttribute, type Color, Group, Matrix4, Mesh, Vector3 } from 'three'
+import { Box3, BufferAttribute, type Color, Group, Matrix4, Mesh, Vector3 } from 'three'
 
 import type { TrackSpline } from '../../../constructor/trackSpline'
 import type { CountdownState } from '../../../reactivity/derive/calculateCountdownState'
 
-import { COUNTDOWN_GREEN, COUNTDOWN_RED, COUNTDOWN_YELLOW, START_GANTRY_HEIGHT, START_GANTRY_DISTANCE } from '../../../constants'
+import {
+  CORRECTION,
+  COUNTDOWN_GREEN,
+  COUNTDOWN_RED,
+  COUNTDOWN_YELLOW,
+  START_GANTRY_DISTANCE,
+  START_GANTRY_HEIGHT,
+  START_GANTRY_ROTATION_X_BY_TRACK,
+} from '../../../constants'
 import { sampleTrackUp } from '../Ships/splineSampling'
 
 export type BuiltStartGantry = {
@@ -22,6 +30,8 @@ const _tangent = new Vector3()
 const _trackUp = new Vector3()
 const _basisX = new Vector3()
 const _matrix = new Matrix4()
+const _box = new Box3()
+const _size = new Vector3()
 
 const cloneGantryMeshes = (root: Group): BufferAttribute[] => {
   const colorAttrs: BufferAttribute[] = []
@@ -38,9 +48,25 @@ const cloneGantryMeshes = (root: Group): BufferAttribute[] => {
   return colorAttrs
 }
 
-// The imported PRM uses local +X for its arch width, +Y for height, +Z for
-// depth — so we build a basis with our world (basisX, trackUp, tangent) and
-// align mesh-local axes to it.
+// The PRM is supposed to load with its long arch axis on local +X, height on
+// +Y, depth on +Z, but the source asset isn't reliable about which axis is
+// which. Rotate the cloned mesh once so the longest dimension always lands
+// on local +X, before we hand it to poseAtStartLine.
+const normalizeArchAxes = (gantry: Group): void => {
+  _box.setFromObject(gantry)
+  _box.getSize(_size)
+
+  if (_size.y > _size.x && _size.y >= _size.z) {
+    gantry.rotateZ(-Math.PI / 2)
+  } else if (_size.z > _size.x && _size.z > _size.y) {
+    gantry.rotateY(Math.PI / 2)
+  }
+}
+
+// Build a basis with our world (basisX, trackUp, tangent) at the start line
+// and align the normalized mesh-local axes to it, then push the gantry forward
+// along the tangent. CORRECTION matches the ship convention so the gantry's
+// front faces the same direction as the player ship.
 const poseAtStartLine = (gantry: Group, spline: TrackSpline): void => {
   spline.curve.getPointAt(spline.startLineT, _position)
   spline.curve.getTangentAt(spline.startLineT, _tangent).normalize()
@@ -48,15 +74,25 @@ const poseAtStartLine = (gantry: Group, spline: TrackSpline): void => {
   _basisX.crossVectors(_trackUp, _tangent).normalize()
   _matrix.makeBasis(_basisX, _trackUp, _tangent)
 
-  gantry.quaternion.setFromRotationMatrix(_matrix)
+  gantry.quaternion.setFromRotationMatrix(_matrix).multiply(CORRECTION)
   gantry.position.copy(_position)
     .addScaledVector(_trackUp, START_GANTRY_HEIGHT)
     .addScaledVector(_tangent, START_GANTRY_DISTANCE)
 }
 
-export const buildStartGantry = (template: Group, spline: TrackSpline): BuiltStartGantry => {
-  const gantry = template.clone(true)
-  const colorAttrs = cloneGantryMeshes(gantry)
+export const buildStartGantry = (
+  template: Group,
+  spline: TrackSpline,
+  trackPath: string,
+): BuiltStartGantry => {
+  const inner = template.clone(true)
+  inner.position.set(0, 0, 0)
+  inner.quaternion.identity()
+  const colorAttrs = cloneGantryMeshes(inner)
+  normalizeArchAxes(inner)
+  inner.rotateY(START_GANTRY_ROTATION_X_BY_TRACK[trackPath] ?? 0)
+  const gantry = new Group()
+  gantry.add(inner)
   poseAtStartLine(gantry, spline)
   return { colorAttrs, gantry }
 }

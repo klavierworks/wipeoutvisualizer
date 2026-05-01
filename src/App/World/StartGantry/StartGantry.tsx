@@ -13,15 +13,16 @@ import { applyCountdownTint, buildStartGantry, type BuiltStartGantry, COUNTDOWN_
 type StartGantryProps = {
   spline: TrackSpline
   template: Group | undefined
+  trackPath: string
 }
 
-const StartGantry = ({ spline, template }: StartGantryProps) => {
+const StartGantry = ({ spline, template, trackPath }: StartGantryProps) => {
   const built = useMemo<BuiltStartGantry | null>(() => {
     if (!template) {
       return null
     }
-    return buildStartGantry(template, spline)
-  }, [spline, template])
+    return buildStartGantry(template, spline, trackPath)
+  }, [spline, template, trackPath])
 
   const stateRef = useRef<CountdownState | null>(null)
   useFrame(() => {
