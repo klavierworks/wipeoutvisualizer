@@ -183,6 +183,7 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
           </Canvas>
           {pipeline && (
             <Hud
+              isDebug={isDebug}
               leaderName={leaderName}
               offlineSections={pipeline.offlineSections}
               trackName={trackName}

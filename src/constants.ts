@@ -126,14 +126,31 @@ export const SECTION_LABEL_COLOR = '#ffff00'
 export const BEAT_LIGHT_INTENSITY = 3
 
 // ─── Scene: oil-pump nod ─────────────────────────────────────────────────
-export const OIL_PUMP_FREQ_HZ = 0.125
+// AMBIENT_FREQ_HZ is the fallback when no BPM is locked; while the beat
+// tracker has a tempo the pumps sway once per bar synced to `audioState.bar`.
+export const OIL_PUMP_AMBIENT_FREQ_HZ = 0.125
 export const OIL_PUMP_AMPLITUDE = 1
 
 // ─── Scene: fan spin ─────────────────────────────────────────────────────
+// Base rotation speed plus reactive boosts on bass and overall loudness so
+// fans visibly accelerate on heavy passages.
 export const FAN_SPEED_RAD_PER_SEC = 4
+export const FAN_BASS_BOOST = 2
+export const FAN_RMS_BOOST = 1.5
+
+// ─── Scene: crowd stand pulse ────────────────────────────────────────────
+// Smoothed bass drives a vertical scale wobble so the stands feel like a
+// breathing crowd rather than static geometry.
+export const CROWD_BASS_LIFT = 0.06
+export const CROWD_LIFT_LERP = 8
 
 // ─── Sky ─────────────────────────────────────────────────────────────────
 export const SKY_FADE_SECONDS = 5
+// Saturation floor when mid-band energy is silent. The cycled hue tint is
+// lerped between the per-channel luminance (fully desaturated) and the full
+// tinted RGB based on `audioState.mid` rescaled into [SKY_MIN_SATURATION, 1].
+export const SKY_MIN_SATURATION = 0.55
+export const SKY_MID_SATURATION_GAIN = 1.4
 
 // ─── Camera ──────────────────────────────────────────────────────────────
 export const CAMERA_BACK_OFFSET = 500
@@ -224,6 +241,22 @@ export const CAMERA_FOV_LERP = 3
 export const CAMERA_KICK_SHAKE_THRESHOLD = 0.7
 export const CAMERA_KICK_SHAKE_MAGNITUDE = 12
 export const CAMERA_KICK_SHAKE_DECAY = 6
+// One-shot camera shake on section changes (drops). Triggered from rising
+// edges of `audioState.sectionChangeCount` when `sectionStrength` clears
+// CAMERA_DROP_STRENGTH_THRESHOLD, decays linearly over DURATION_SEC. This
+// is meant to be felt a handful of times per song, not per drum hit —
+// onset-driven shake was tried first and proved continuous on dense
+// material.
+export const CAMERA_DROP_SHAKE_MAGNITUDE = 40
+export const CAMERA_DROP_SHAKE_DURATION_SEC = 0.6
+export const CAMERA_DROP_SHAKE_FREQ_HZ = 18
+export const CAMERA_DROP_STRENGTH_THRESHOLD = 0.4
+
+// ─── Reactivity: BPM trust ───────────────────────────────────────────────
+// Aubio's tempo confidence sits in roughly [0, 0.4] for music; multiplying
+// by this gain and capping at 1 rescales it into a [0, 1] trust factor we
+// use to fade BPM-driven visuals (plume colour/length, ship speed multi).
+export const BPM_CONFIDENCE_GAIN = 4
 
 // ─── Reactivity: ship bank on kick ───────────────────────────────────────
 export const SHIP_BANK_KICK_THRESHOLD = 0.6

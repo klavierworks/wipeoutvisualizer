@@ -7,6 +7,7 @@ import type { WarpShip } from '../App/World/Ships/warpShip'
 import { audioState } from '../audio'
 import {
   BOOST_FACTOR_LERP,
+  BPM_CONFIDENCE_GAIN,
   PLUME_BASS_FLARE_GAIN,
   PLUME_BASS_TRAIL_GAIN,
   PLUME_BEAT_WIDTH_PEAK,
@@ -18,6 +19,8 @@ import {
   TWO_PI,
 } from '../constants'
 import { lookupColor, lookupNumber, sortedKeys } from './derive/lookupTable'
+
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, value))
 
 const TRAIL_LENGTH_KEYS = sortedKeys(PLUME_BPM_TRAIL_LENGTH)
 const FLARE_SIZE_KEYS = sortedKeys(PLUME_BPM_FLARE_SIZE)
@@ -45,7 +48,12 @@ const usePlumeReactivity = (warpShip: WarpShip, ship: Ship) => {
     boostFactorRef.current += (target - boostFactorRef.current) * alpha
 
     const factor = boostFactorRef.current
-    const effectiveBpm = audioState.bpm * (1 - factor) + PLUME_BOOST_BPM * factor
+    // Below-confidence beats can leave a stale `audioState.bpm` value. Fade
+    // its contribution to the plume map by the rescaled aubio confidence so
+    // the trail relaxes back to its idle look during vocal passages or
+    // intros where the tempo lock is shaky.
+    const trustedBpm = audioState.bpm * clamp01(audioState.bpmConfidence * BPM_CONFIDENCE_GAIN)
+    const effectiveBpm = trustedBpm * (1 - factor) + PLUME_BOOST_BPM * factor
 
     const widthTarget = calculateBeatWidthTarget()
     const widthAlpha = 1 - Math.exp(-dt * PLUME_WIDTH_LERP)

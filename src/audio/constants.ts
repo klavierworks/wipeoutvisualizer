@@ -17,6 +17,14 @@ export const AVG_SMOOTH = 0.02
 export const BAND_SMOOTH = 0.35
 export const BEATS_PER_BAR = 4
 export const KICK_THRESHOLD = 1.35
+// When no kick has fired for SETTLE_SEC seconds we begin relaxing the kick
+// detector toward KICK_THRESHOLD_MIN at RELAX_PER_SEC. This makes softer
+// material (jazz, ambient, classical) still produce occasional kick events
+// instead of staying visually dead. After a kick fires the threshold pops
+// back up to KICK_THRESHOLD so dense passages don't degenerate to noise.
+export const KICK_THRESHOLD_MIN = 1.1
+export const KICK_THRESHOLD_SETTLE_SEC = 3
+export const KICK_THRESHOLD_RELAX_PER_SEC = 0.1
 export const SNARE_THRESHOLD = 1.25
 export const KICK_FLOOR = 0.12
 export const SNARE_FLOOR = 0.08

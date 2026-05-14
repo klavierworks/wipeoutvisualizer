@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+
 import type { SectionInfo } from '../../../audio/preanalysis/sections'
 
 import styles from './Hud.module.css'
 import { useHudReadouts } from './useHudReadouts'
 
 type HudProps = {
+  isDebug: boolean
   leaderName: string
   offlineSections: null | SectionInfo[]
   trackName: string
@@ -12,35 +14,44 @@ type HudProps = {
 
 const formatStateValue = (value: unknown): string => (typeof value === 'number' ? value.toFixed(2) : String(value))
 
-const Hud = ({ leaderName, offlineSections, trackName }: HudProps) => {
+const Hud = ({ isDebug, leaderName, offlineSections, trackName }: HudProps) => {
   const { isLive, sectionLabel, sectionRemaining, snapshot, tempo, trackRemaining } = useHudReadouts(offlineSections)
 
   const [isShowingDetails, setIsShowingDetails] = useState(false)
 
   useEffect(() => {
     if (!isLive) {
-      return;
+      return
     }
 
-    let timeout = setTimeout(() => {
+    let innerTimeout: number | undefined
+    const outerTimeout = window.setTimeout(() => {
       setIsShowingDetails(true)
-      timeout = setTimeout(() => {
+      innerTimeout = window.setTimeout(() => {
         setIsShowingDetails(false)
-      }, 5000);
+      }, 5000)
     }, 1000)
 
-    return () => clearTimeout(timeout)
+    return () => {
+      window.clearTimeout(outerTimeout)
+
+      if (innerTimeout !== undefined) {
+        window.clearTimeout(innerTimeout)
+      }
+    }
   }, [isLive, trackName, leaderName])
 
   return (
     <div className={styles.hud}>
-      <div className={styles.positions}>
-        {Object.entries(snapshot).map(([key, value]) => (
-          <div key={key}>
-            <strong>{key}:</strong> {formatStateValue(value)}
-          </div>
-        ))}
-      </div>
+      {isDebug && (
+        <div className={styles.positions}>
+          {Object.entries(snapshot).map(([key, value]) => (
+            <div key={key}>
+              <strong>{key}:</strong> {formatStateValue(value)}
+            </div>
+          ))}
+        </div>
+      )}
       <div className={styles.check}>
         {sectionLabel}
         {!isLive && <div className={styles.time}>{sectionRemaining}</div>}

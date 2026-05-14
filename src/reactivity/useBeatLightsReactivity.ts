@@ -6,7 +6,7 @@ import { Mesh } from 'three'
 import type { BeatLight } from '../constructor/scene'
 
 import { audioState } from '../audio'
-import { BEAT_LIGHT_DOWNBEAT_BONUS, BEAT_LIGHT_INTENSITY } from '../constants'
+import { BEAT_LIGHT_DOWNBEAT_BONUS, BEAT_LIGHT_INTENSITY, TWO_PI } from '../constants'
 import { getIsDownbeat } from './derive/calculatePhrasePhase'
 
 const findMesh = (group: Group): Mesh | undefined =>
@@ -33,7 +33,12 @@ const paintMesh = (mesh: Mesh, r: number, g: number, b: number): void => {
 const useBeatLightsReactivity = (lights: BeatLight[]) => {
   useFrame(() => {
     const downbeatBonus = getIsDownbeat() ? BEAT_LIGHT_DOWNBEAT_BONUS : 0
-    const intensity = audioState.beatPhase * BEAT_LIGHT_INTENSITY * (1 + downbeatBonus)
+    // Cosine envelope peaks at beatPhase 0 and 1 (i.e. on every beat) and
+    // troughs at 0.5. Using beatPhase directly (a sawtooth) inverted the
+    // expected behaviour: lights ramped UP between beats and snapped dark
+    // right on the beat.
+    const pulse = 0.5 * (1 + Math.cos(TWO_PI * audioState.beatPhase))
+    const intensity = pulse * BEAT_LIGHT_INTENSITY * (1 + downbeatBonus)
 
     for (const light of lights) {
       if (light.kind === 'opacity') {
