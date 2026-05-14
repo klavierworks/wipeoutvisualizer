@@ -1,6 +1,7 @@
 import type { AnalyzeResult } from './preanalysis/analyze.worker'
 import type { Source } from './source/types'
 
+import { MAX_FRAME_DT_SEC } from '../constants'
 import { createBeatTracker } from './aubio/createBeatTracker'
 import {
   advanceOfflineSections,
@@ -13,6 +14,7 @@ import {
 } from './clock'
 import { PULSE_DECAY } from './constants'
 import { createSectionDetector, type SectionChange } from './estimators/createSectionDetector'
+import { createSilenceDetector, type SilenceChange } from './estimators/createSilenceDetector'
 import { createExtractor } from './features/createExtractor'
 import { createOnsetDetector } from './features/createOnsetDetector'
 import { runOfflineAnalysis } from './preanalysis/runOfflineAnalysis'
@@ -36,6 +38,7 @@ const initializeFileState = (analysis: AnalyzeResult, duration: number): Section
   audioState.sectionStart = initial?.start ?? 0
   audioState.sectionStrength = initial?.strength ?? 0
   audioState.sectionChangeCount = 0
+  audioState.sectionResetCount = 0
 
   return sections
 }
@@ -45,6 +48,7 @@ const initializeMicState = (): void => {
   audioState.sectionStart = 0
   audioState.sectionStrength = 0
   audioState.sectionChangeCount = 0
+  audioState.sectionResetCount = 0
 }
 
 export const wirePipeline = async (source: Source): Promise<Pipeline> => {
@@ -61,11 +65,13 @@ export const wirePipeline = async (source: Source): Promise<Pipeline> => {
 
     return bpm > 0 ? (60 / bpm) * 4 : 8
   })
+  const silenceDetector = createSilenceDetector()
 
   const clockState: ClockState = createClockState()
 
   const unsubscribeOnsetDetector = extractor.onFrame(onsetDetector.handle)
   const unsubscribeSectionDetector = extractor.onFrame(sectionDetector.feedFrame)
+  const unsubscribeSilenceDetector = extractor.onFrame(silenceDetector.feedFrame)
 
   const unsubscribeBeat = beatTracker.onBeat(({ bpm, confidence }) => {
     recordBeat(clockState, source.getCurrentTime(), bpm, confidence)
@@ -81,11 +87,31 @@ export const wirePipeline = async (source: Source): Promise<Pipeline> => {
     }
 
     audioState.sectionStart = change.time
-    audioState.sectionStrength = change.strength
+    audioState.sectionStrength = 1
     audioState.sectionChangeCount += 1
   }
 
+  const handleSilenceChange = (change: SilenceChange): void => {
+    audioState.sectionStart = change.time
+    audioState.sectionStrength = 1
+    audioState.sectionChangeCount += 1
+
+    if (!change.isLoud) {
+      audioState.sectionResetCount += 1
+    }
+  }
+
+  const signalReset = (time: number): void => {
+    audioState.sectionStart = time
+    audioState.sectionStrength = 1
+    audioState.sectionChangeCount += 1
+    audioState.sectionResetCount += 1
+  }
+
+  let lastSeenBpm = 0
+
   const unsubscribeSectionChange = sectionDetector.onChange(handleSectionChange)
+  const unsubscribeSilenceChange = silenceDetector.onChange(handleSilenceChange)
 
   let offlineAnalysis: AnalyzeResult | null = null
   let offlineSections: null | SectionInfo[] = null
@@ -102,7 +128,9 @@ export const wirePipeline = async (source: Source): Promise<Pipeline> => {
     dispose: () => {
       unsubscribeOnsetDetector()
       unsubscribeSectionDetector()
+      unsubscribeSilenceDetector()
       unsubscribeSectionChange()
+      unsubscribeSilenceChange()
       unsubscribeBeat()
       unsubscribeOnset()
       extractor.stop()
@@ -125,9 +153,11 @@ export const wirePipeline = async (source: Source): Promise<Pipeline> => {
       beatTracker.start()
       audioState.isReady = true
     },
-    tickFrame: (dt) => {
+    tickFrame: (rawDt) => {
       void source.ensureRunning()
 
+      const isJumboFrame = rawDt > MAX_FRAME_DT_SEC
+      const dt = isJumboFrame ? MAX_FRAME_DT_SEC : rawDt
       const currentTime = source.getCurrentTime()
 
       audioState.kick = Math.max(0, audioState.kick - dt * PULSE_DECAY)
@@ -136,6 +166,12 @@ export const wirePipeline = async (source: Source): Promise<Pipeline> => {
       audioState.isPlaying = source.isPlaying()
 
       tickClock(currentTime, clockState)
+
+      if (!isJumboFrame && lastSeenBpm > 0 && audioState.bpm <= 0) {
+        signalReset(currentTime)
+      }
+
+      lastSeenBpm = audioState.bpm
 
       if (offlineSections) {
         const after = advanceOfflineSections(currentTime, offlineSections, hint)

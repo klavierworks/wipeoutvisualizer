@@ -3,20 +3,33 @@ import { useRef } from 'react'
 
 import { audioState } from '../../../audio'
 
+export type SectionEvent = {
+  isReset: boolean
+  strength: number
+}
+
 type LevelSwapperProps = {
-  onSection: (strength: number) => void
+  onSection: (event: SectionEvent) => void
 }
 
 const LevelSwapper = ({ onSection }: LevelSwapperProps) => {
   const lastChangeCount = useRef(audioState.sectionChangeCount)
+  const lastResetCount = useRef(audioState.sectionResetCount)
 
   useFrame(() => {
-    const count = audioState.sectionChangeCount
+    const change = audioState.sectionChangeCount
+    const reset = audioState.sectionResetCount
 
-    if (count !== lastChangeCount.current) {
-      lastChangeCount.current = count
-      onSection(audioState.sectionStrength)
+    if (change === lastChangeCount.current && reset === lastResetCount.current) {
+      return
     }
+
+    const isReset = reset > lastResetCount.current
+
+    lastChangeCount.current = change
+    lastResetCount.current = reset
+
+    onSection({ isReset, strength: audioState.sectionStrength })
   })
 
   return null

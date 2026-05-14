@@ -37,6 +37,13 @@ export const SECTION_RMS_FLOOR = 0.005
 export const SECTION_DEFAULT_BAR_SEC = 2
 export const SECTION_STRENGTH_NORMALIZE = 0.4
 
+// ─── Streaming silence detector ──────────────────────────────────────────
+// SILENCE_RMS_THRESHOLD matches COUNTDOWN_AUDIO_RMS_THRESHOLD: anything below
+// it counts as "no audio". Set higher than SECTION_RMS_FLOOR because ambient
+// mic noise typically sits in (0.005, 0.01).
+export const SILENCE_RMS_THRESHOLD = 0.01
+export const SILENCE_HOLD_SEC = 0.3
+
 // ─── Aubio streaming beat tracker ────────────────────────────────────────
 export const AUBIO_BUFFER_SIZE = 1024
 export const AUBIO_HOP_SIZE = 512

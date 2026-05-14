@@ -65,6 +65,29 @@ const AudioProvider = ({ children }: AudioProviderProps) => {
     [],
   )
 
+  useEffect(() => {
+    if (state.kind !== 'playing') {
+      return
+    }
+
+    const { audioContext } = state.pipeline.source
+
+    const handleVisibilityChange = (): void => {
+      if (document.visibilityState === 'hidden') {
+        void audioContext.suspend()
+        return
+      }
+
+      void audioContext.resume()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [state])
+
   const pipeline = state.kind === 'playing' ? state.pipeline : null
 
   return (

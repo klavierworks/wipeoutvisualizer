@@ -59,6 +59,8 @@ export const pickSplineIndex = (splineCount: number): number => {
   return 1 + Math.floor(Math.random() * (splineCount - 1))
 }
 
+export type ResetShipArgs = Omit<MakeShipArgs, 'isCameraTarget'>
+
 type MakeShipArgs = {
   index: number
   isCameraTarget: boolean
@@ -66,6 +68,16 @@ type MakeShipArgs = {
   splineCount: number
   startLineT: number
   totalShips: number
+}
+
+export const resetShipToGrid = (ship: Ship, args: ResetShipArgs): void => {
+  const fresh = makeShip({ ...args, isCameraTarget: ship.isCameraTarget })
+
+  ship.boost = fresh.boost
+  ship.isSeeded = false
+  ship.lane = fresh.lane
+  ship.pose = fresh.pose
+  ship.speed = fresh.speed
 }
 
 export const makeShip = ({

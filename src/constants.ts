@@ -44,6 +44,14 @@ export const START_LINE_SECTION_BY_TRACK: Record<string, number> = {
 }
 export const TOTAL_LOAD_STEPS = LEVEL_PATHS.length + 1
 export const LEVEL_ADVANCE_STRENGTH = 0.6
+export const LEVEL_ADVANCE_GREEN_DELAY_SEC = 10
+// Maximum frame-to-frame dt we'll integrate against. Tab backgrounding
+// throttles rAF; the first frame after returning can arrive with a multi-
+// second dt that would teleport ships or trip stale-beat resets. Frames
+// above this cap are treated as "just resumed" — clamped to this value
+// for integration, and any single-shot reset triggers gated by dt are
+// suppressed.
+export const MAX_FRAME_DT_SEC = 0.1
 
 // ─── Loading: ?fakeloading=true ──────────────────────────────────────────
 // Per-phase delays injected when the URL flag is set, so we can eyeball
@@ -232,15 +240,32 @@ export const WEAPON_SNARE_THRESHOLD = 0.45
 export const BOOST_KICK_THRESHOLD = 0.55
 export const BOOST_KICK_TILE_FRACTION = 0.25
 
-// ─── Reactivity: sky section-energy tint ─────────────────────────────────
-export const SKY_TINT_QUIET = 1
-export const SKY_TINT_LOUD = 2
+// ─── Reactivity: sky per-beat hue cycle ──────────────────────────────────
+// On every beat the sky multiplies its base texture color by the next entry
+// in this cycle, switching hue rather than flashing. Each triple is an RGB
+// multiplier (>1 brightens the channel, <1 darkens), so the existing texture
+// is recoloured rather than replaced.
+export const SKY_HUE_CYCLE: ReadonlyArray<readonly [number, number, number]> = [
+  [2.2, 0.4, 0.4],
+  [0.4, 2.2, 0.4],
+  [2.2, 2.2, 0.4],
+  [0.4, 0.6, 2.2],
+  [2.2, 0.5, 2.0],
+  [0.4, 2.0, 2.0],
+]
 
 // ─── Plume ───────────────────────────────────────────────────────────────
 export const BOOST_FACTOR_LERP = 6
 export const PLUME_BOOST_BPM = 140
 export const ENGINE_TEXTURE_INDEX = 16
 export const ENGINE_CLUSTER_RADIUS = 50
+
+// ─── Plume: per-beat width pulse ─────────────────────────────────────────
+// Trail width scales smoothly through one cosine cycle per beat: 1.0× at
+// off-beat, PLUME_BEAT_WIDTH_PEAK× at the beat. The smooth lerp constant
+// prevents the snap-back at beatPhase wrap when a beat lands.
+export const PLUME_BEAT_WIDTH_PEAK = 1.5
+export const PLUME_WIDTH_LERP = 10
 
 export const PLUME_BPM_TRAIL_LENGTH: Record<number, number> = {
   0: 0,

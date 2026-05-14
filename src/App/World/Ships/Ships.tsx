@@ -4,6 +4,7 @@ import { Group } from 'three'
 import type { TrackSpline } from '../../../constructor/trackSpline'
 import type { Ship as ShipType } from './ship'
 
+import { MAX_FRAME_DT_SEC } from '../../../constants'
 import Ship from './Ship/Ship'
 import ShipCollisions from './ShipCollisions/ShipCollisions'
 import { calculatePackBias, tickShip } from './shipUtils'
@@ -15,7 +16,9 @@ type ShipsProps = {
 }
 
 const Ships = ({ ships, splines, templates }: ShipsProps) => {
-  useFrame((_, dt) => {
+  useFrame((_, rawDt) => {
+    const dt = Math.min(rawDt, MAX_FRAME_DT_SEC)
+
     for (let i = 0; i < ships.length; i++) {
       const ship = ships[i]
       const group = ship.groupRef.current

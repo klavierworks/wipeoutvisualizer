@@ -6,13 +6,20 @@ import { Group } from 'three'
 import type { BuiltExtras } from '../../constructor'
 import type { LoadedLevel } from '../useLevelLoader'
 
-import { LEVEL_ADVANCE_STRENGTH, RACER_COUNT, SHIP_NAMES, TRACK_NAMES } from '../../constants'
+import {
+  LEVEL_ADVANCE_GREEN_DELAY_SEC,
+  LEVEL_ADVANCE_STRENGTH,
+  RACER_COUNT,
+  SHIP_NAMES,
+  TRACK_NAMES,
+} from '../../constants'
+import { getSecondsSinceGreen, resetCountdown } from '../../reactivity/derive/calculateCountdownState'
 import AudioProvider from './AudioProvider/AudioProvider'
 import AudioTicker from './AudioTicker/AudioTicker'
 import Billboards from './Billboards/Billboards'
 import ChaseCamera from './ChaseCamera/ChaseCamera'
 import Hud from './Hud/Hud'
-import LevelSwapper from './LevelSwapper/LevelSwapper'
+import LevelSwapper, { type SectionEvent } from './LevelSwapper/LevelSwapper'
 import ReactivityTicker from './ReactivityTicker/ReactivityTicker'
 import Scene from './Scene/Scene'
 import SectionLabels from './SectionLabels/SectionLabels'
@@ -86,13 +93,14 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
 
     return { current, next: pickDifferent(levels.length, current) }
   })
+  const [resetVersion, setResetVersion] = useState(0)
 
   const current = levels[indexes.current].built
   const next = levels[indexes.next].built
   const currentPath = levels[indexes.current].path
 
   const templates = useRacerTemplates(current.ships.meshes, leaderMeshOverride, shipIndex, RACER_COUNT)
-  const { ships } = useShipFleet(current.ships.splines)
+  const { ships } = useShipFleet(current.ships.splines, resetVersion)
 
   const leaderName = useMemo(
     () => resolveLeaderName(templates[0], current.ships.meshes, extras),
@@ -101,8 +109,25 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
   const trackName = useMemo(() => resolveTrackName(currentPath), [currentPath])
 
   const handleSection = useCallback(
-    (strength: number) => {
+    ({ isReset, strength }: SectionEvent) => {
       if (isPinned) {
+        return
+      }
+
+      const secondsInGreen = getSecondsSinceGreen()
+
+      if (secondsInGreen === null || secondsInGreen < LEVEL_ADVANCE_GREEN_DELAY_SEC) {
+        console.log(
+          `[level] section change suppressed (isReset=${isReset}): countdown not past ${LEVEL_ADVANCE_GREEN_DELAY_SEC}s green`,
+        )
+        return
+      }
+
+      if (isReset) {
+        console.log(`[level] silence-triggered section change → swap + reset to start`)
+        resetCountdown()
+        setResetVersion((version) => version + 1)
+        setIndexes((prev) => ({ current: prev.next, next: pickDifferent(levels.length, prev.next) }))
         return
       }
 
@@ -112,7 +137,6 @@ const World = ({ extras, isDebug, isPinned, leaderMeshOverride, levels, shipInde
       }
 
       console.log(`[level] section change strength ${strength.toFixed(2)} → advance level`)
-
       setIndexes((prev) => ({ current: prev.next, next: pickDifferent(levels.length, prev.next) }))
     },
     [levels.length, isPinned],

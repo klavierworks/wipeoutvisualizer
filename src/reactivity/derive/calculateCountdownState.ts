@@ -5,6 +5,7 @@ export type CountdownState = 'green' | 'red' | 'yellow'
 
 let hasEverBeenGreen = false
 let hasEverBeenYellow = false
+let greenAt: null | number = null
 
 export const calculateCountdownState = (): CountdownState => {
   if (hasEverBeenGreen) {
@@ -17,6 +18,7 @@ export const calculateCountdownState = (): CountdownState => {
 
   if (audioState.bpm > 0) {
     hasEverBeenGreen = true
+    greenAt = audioState.time
 
     return 'green'
   }
@@ -24,6 +26,20 @@ export const calculateCountdownState = (): CountdownState => {
   hasEverBeenYellow = true
 
   return 'yellow'
+}
+
+export const resetCountdown = (): void => {
+  hasEverBeenGreen = false
+  hasEverBeenYellow = false
+  greenAt = null
+}
+
+export const getSecondsSinceGreen = (): null | number => {
+  if (greenAt === null) {
+    return null
+  }
+
+  return audioState.time - greenAt
 }
 
 export const isRacing = (): boolean => calculateCountdownState() === 'green'

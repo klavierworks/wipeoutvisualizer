@@ -5,9 +5,19 @@ import type { SectionInfo } from '../audio'
 
 import { computeFade, getSkyBaseColor } from '../App/World/SkyboxLayer/Sky/configureSkyMaterials'
 import { audioState } from '../audio'
-import { SKY_TINT_LOUD, SKY_TINT_QUIET } from '../constants'
+import { SKY_HUE_CYCLE } from '../constants'
 
 type SkyRole = 'current' | 'next'
+
+const pickHue = (beat: number): readonly [number, number, number] => {
+  if (audioState.bpm <= 0) {
+    return SKY_HUE_CYCLE[0]
+  }
+
+  const index = ((Math.floor(beat) % SKY_HUE_CYCLE.length) + SKY_HUE_CYCLE.length) % SKY_HUE_CYCLE.length
+
+  return SKY_HUE_CYCLE[index]
+}
 
 const useSkyReactivity = (
   materials: MeshBasicMaterial[],
@@ -19,8 +29,7 @@ const useSkyReactivity = (
       return
     }
 
-    const pulse = audioState.bpm > 0 ? 1 - audioState.beatPhase : 0
-    const tint = SKY_TINT_QUIET + (SKY_TINT_LOUD - SKY_TINT_QUIET) * pulse
+    const hue = pickHue(audioState.beat)
     const fade = role === 'next' ? computeFade(offlineSections) : 1
 
     for (let i = 0; i < materials.length; i++) {
@@ -28,7 +37,7 @@ const useSkyReactivity = (
       const base = getSkyBaseColor(material)
 
       if (base) {
-        material.color.copy(base).multiplyScalar(tint)
+        material.color.setRGB(base.r * hue[0], base.g * hue[1], base.b * hue[2])
       }
 
       if (role === 'next') {
