@@ -10,6 +10,11 @@ Using the original game source files, the project reconstructs the data in a for
 https://wipeout.klavier.works
 
 
+## Credits
+
+Data structure of Wipeout2097 game files based off findings of Phobos Lab: https://phoboslab.org/log/2015/04/reverse-engineering-wipeout-psx
+
+
 ## Earlier builds:
 September 2024:
 <video src="https://github.com/user-attachments/assets/b7cba613-a8c4-456c-af9f-5e1c944addf9"></video>
